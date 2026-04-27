@@ -1,0 +1,25 @@
+{
+  "name": "@pagesai/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "pages-ai": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "lint": "echo ok",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@pagesai/agent": "workspace:*",
+    "@pagesai/core": "workspace:*",
+    "@pagesai/documents": "workspace:*",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vitest": "^3.0.9"
+  }
+}

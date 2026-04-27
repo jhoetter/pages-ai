@@ -1,0 +1,11 @@
+node_modules
+dist
+dist-types
+.turbo
+*.tsbuildinfo
+.env
+.env.local
+release-out
+coverage
+playwright-report
+test-results

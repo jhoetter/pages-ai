@@ -1,0 +1,24 @@
+{
+  "$schema": "../hof-os/infra/sister-ui-contract.json",
+  "product": "pagesai",
+  "hofOsPath": "../hof-os",
+  "harness": {
+    "mode": "hofos",
+    "command": "HOFOS_MODE=1 pnpm --filter @pagesai/web build",
+    "requiredRoutes": [
+      "/pages",
+      "/pages/p/example-page",
+      "/pages/p/example-page?block=example-block",
+      "/pages/space/example-space",
+      "/pages/db/example-db",
+      "/pages/db/example-db?view=example-view",
+      "/pages/templates",
+      "/pages/settings"
+    ],
+    "requiredProxyPrefix": "/api/pages",
+    "officeAiAttachmentContract": "Use the hofOS SisterAppAttachmentLightbox/EditAssetEditorMount path; do not bundle a separate Office-AI editor runtime."
+  },
+  "export": {
+    "outDir": "release-out/hofos-ui"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "@pagesai/hofos",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "hofOS harness metadata and future bridge helpers",
+  "scripts": {
+    "build": "echo ok",
+    "lint": "echo ok",
+    "typecheck": "echo ok",
+    "test": "echo ok"
+  }
+}

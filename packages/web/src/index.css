@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+/*
+ * Theming surface for PagesAI standalone and sister hosts (e.g. hof-os).
+ * Override these --pa-* variables from a parent design system; avoid hard-coding
+ * brand colors in components.
+ */
+:root,
+[data-theme="light"] {
+  --pa-bg: #f7f6f3;
+  --pa-fg: #1a1a1a;
+  --pa-surface: #ffffff;
+  --pa-hover: rgba(0, 0, 0, 0.06);
+  --pa-divider: rgba(0, 0, 0, 0.09);
+  --pa-secondary: #6b6b6b;
+  --pa-tertiary: #9b9b9b;
+  --pa-accent: #2563eb;
+  --pa-warning: #d97706;
+  --pa-danger: #dc2626;
+  --pa-success: #16a34a;
+  --pa-radius-sm: 4px;
+  --pa-radius-md: 6px;
+  --pa-popover-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] {
+  --pa-bg: #191919;
+  --pa-fg: #e6e6e6;
+  --pa-surface: #202020;
+  --pa-hover: rgba(255, 255, 255, 0.06);
+  --pa-divider: rgba(255, 255, 255, 0.1);
+  --pa-secondary: #a3a3a3;
+  --pa-tertiary: #737373;
+  --pa-accent: #60a5fa;
+  --pa-warning: #fbbf24;
+  --pa-danger: #f87171;
+  --pa-success: #4ade80;
+  --pa-popover-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: var(--pa-bg);
+  color: var(--pa-fg);
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a,
+  button,
+  input,
+  textarea,
+  [role="button"] {
+    transition:
+      background-color 0.12s ease,
+      color 0.12s ease,
+      border-color 0.12s ease,
+      opacity 0.12s ease;
+  }
+}

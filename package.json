@@ -1,0 +1,38 @@
+{
+  "name": "pages-ai",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "PagesAI — Notion-alike workspace (hofOS sister product)",
+  "license": "MIT",
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "lint:root": "eslint \"packages/**/src/**/*.ts\" \"packages/**/src/**/*.tsx\" scripts/**/*.mjs",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:integration": "turbo run test:integration --continue",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "pnpm format:check && pnpm lint:root && pnpm run hofos:check && pnpm typecheck && pnpm test",
+    "quality": "pnpm --filter @pagesai/web exec playwright install chromium && pnpm test:integration && pnpm --filter @pagesai/web test:e2e",
+    "hofos:check": "node scripts/check-hofos-ui-contract.mjs",
+    "hofos:harness": "HOFOS_MODE=1 VITE_HOFOS_MODE=1 pnpm --filter @pagesai/web build && node scripts/check-hofos-harness-smoke.mjs",
+    "export:hofos-ui": "node scripts/export-hofos-ui.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "@types/node": "22",
+    "eslint": "^9.13.0",
+    "globals": "^15.11.0",
+    "prettier": "^3.3.3",
+    "turbo": "^2.2.3",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.11.0"
+  }
+}
