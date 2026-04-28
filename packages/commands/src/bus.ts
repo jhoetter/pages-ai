@@ -10,6 +10,7 @@ import {
   DbPropertyAddPayload,
   DbQueryPayload,
   DbRowCreatePayload,
+  DbRowUpdatePayload,
   DbViewCreatePayload,
   PageArchivePayload,
   PageCreatePayload,
@@ -375,11 +376,15 @@ export async function handleCommand(
         const nextContent = p.text
           ? paragraphFromText(p.text)
           : (existing[0].content as Record<string, unknown>);
+        const nextProps =
+          p.properties !== undefined
+            ? { ...(existing[0].properties as Record<string, unknown>), ...p.properties }
+            : (existing[0].properties as Record<string, unknown>);
         await db
           .update(schema.blocks)
           .set({
             type: p.type ?? existing[0].type,
-            properties: p.properties ?? existing[0].properties,
+            properties: nextProps,
             content: nextContent as Record<string, unknown>,
             updatedAt: new Date(),
           })
@@ -572,6 +577,44 @@ export async function handleCommand(
           .values({ databaseId: p.database_id, cells: p.cells })
           .returning();
         const op = { op_type: "db.row.created", payload: { row } };
+        await db.insert(schema.operations).values({
+          ...baseOps,
+          commandId,
+          opType: op.op_type,
+          payload: op.payload,
+        });
+        return { command_id: commandId, status: "applied", operations: [op] };
+      }
+      case "db.row.update": {
+        const p = DbRowUpdatePayload.parse(envelope.payload);
+        const d = await db
+          .select()
+          .from(schema.databases)
+          .innerJoin(schema.spaces, eq(schema.databases.spaceId, schema.spaces.id))
+          .where(and(eq(schema.databases.id, p.database_id), eq(schema.spaces.tenantId, tenantId)))
+          .limit(1);
+        if (!d[0]) return fail("NOT_FOUND", "database not found");
+        const row = await db
+          .select()
+          .from(schema.databaseRows)
+          .where(
+            and(
+              eq(schema.databaseRows.id, p.row_id),
+              eq(schema.databaseRows.databaseId, p.database_id),
+            ),
+          )
+          .limit(1);
+        if (!row[0]) return fail("NOT_FOUND", "row not found");
+        const merged = {
+          ...(row[0].cells as Record<string, unknown>),
+          ...p.cells,
+        };
+        const [updated] = await db
+          .update(schema.databaseRows)
+          .set({ cells: merged, updatedAt: new Date() })
+          .where(eq(schema.databaseRows.id, p.row_id))
+          .returning();
+        const op = { op_type: "db.row.updated", payload: { row: updated } };
         await db.insert(schema.operations).values({
           ...baseOps,
           commandId,

@@ -3,8 +3,7 @@ import { Command } from "cmdk";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
-import { AssetRefSchema } from "@pagesai/core";
-import { apiGet, apiPost } from "@/lib/api";
+import { apiGet } from "@/lib/api";
 
 type SearchRes = { results: Array<{ id: string; title: string }> };
 
@@ -34,23 +33,6 @@ export function CommandPalette(props: {
   });
 
   if (!props.open) return null;
-
-  const insertFileMock = () => {
-    if (!props.pageId) return;
-    const ref = AssetRefSchema.parse({
-      provider: "external-url",
-      url: "https://example.com/mock-asset",
-      mime_type: "application/octet-stream",
-      display_name: "mock-file.bin",
-    });
-    void apiPost("/api/commands", {
-      type: "block.append",
-      payload: { page_id: props.pageId, type: "file_embed", properties: { asset: ref } },
-      actor_id: "web",
-      actor_type: "human",
-    }).catch(console.error);
-    props.onOpenChange(false);
-  };
 
   return (
     <div
@@ -131,15 +113,6 @@ export function CommandPalette(props: {
               className="px-3 py-2 rounded-md mx-1 cursor-pointer aria-selected:bg-[var(--pa-hover)]"
             >
               {t("palette.comments")}
-            </Command.Item>
-            <Command.Item
-              onSelect={() => {
-                insertFileMock();
-              }}
-              disabled={!props.pageId}
-              className="px-3 py-2 rounded-md mx-1 cursor-pointer aria-selected:bg-[var(--pa-hover)]"
-            >
-              {t("palette.insertFileMock")}
             </Command.Item>
             <Command.Item
               onSelect={() => {

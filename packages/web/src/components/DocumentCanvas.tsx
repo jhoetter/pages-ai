@@ -15,17 +15,21 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { type SlashCommandDef } from "@pagesai/core";
+import { type AssetRef, type SlashCommandDef } from "@pagesai/core";
 import { extractPlainText } from "@pagesai/documents";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { BlockInsertMenu } from "@/components/BlockInsertMenu";
+import { DatabasePicker } from "@/components/DatabasePicker";
 import { InlineDatabaseBlock } from "@/components/InlineDatabaseBlock";
 import { PagePickerList } from "@/components/PagePickerList";
 import { apiPost } from "@/lib/api";
 import { filterSlashCommands, slashMenuFlat } from "@/lib/slashMenu";
+import { uploadFileForSpace } from "@/lib/uploadAsset";
+import { useAuthedObjectUrl } from "@/lib/useAuthedObjectUrl";
+import { runtimeApiBase, runtimeAuthHeaders } from "@/lib/runtime-config";
 
 export type BlockEntity = {
   id: string;
@@ -44,6 +48,35 @@ function getSlashParse(text: string, cursor: number): SlashParse {
   const m = lineBeforeCursor.match(/^(\s*)\/(.*)$/);
   if (!m) return { kind: "none" };
   return { kind: "slash", slashStart: lineStart + m[1].length, query: m[2] ?? "" };
+}
+
+function slashDefaultProperties(def: SlashCommandDef): Record<string, unknown> | undefined {
+  switch (def.blockType) {
+    case "todo":
+      return { checked: false };
+    case "toggle":
+      return { open: true };
+    case "callout":
+      return { emoji: "💡" };
+    default:
+      return undefined;
+  }
+}
+
+function listMarkersForBlocks(blocks: BlockEntity[]): Record<string, { bullet: boolean; number: string | null }> {
+  const sorted = [...blocks].sort((a, b) => a.sortOrder - b.sortOrder);
+  const out: Record<string, { bullet: boolean; number: string | null }> = {};
+  let n = 0;
+  for (const b of sorted) {
+    if (b.type === "numbered") {
+      n += 1;
+      out[b.id] = { bullet: false, number: String(n) };
+    } else {
+      n = 0;
+      out[b.id] = { bullet: b.type === "bullet", number: null };
+    }
+  }
+  return out;
 }
 
 function blockTextClass(type: string): string {
@@ -130,17 +163,292 @@ function SortableBlockChrome(props: {
   );
 }
 
+function FileEmbedBlock(props: { block: BlockEntity; pageId: string }) {
+  const { t } = useTranslation();
+  const asset = props.block.properties["asset"] as AssetRef | undefined;
+  const key = asset?.object_key;
+  const blobUrl = useAuthedObjectUrl(key);
+  const mime = asset?.mime_type ?? "";
+  const name = asset?.display_name ?? t("file.open");
+
+  const download = async () => {
+    if (!key) return;
+    const base = runtimeApiBase().replace(/\/$/, "");
+    const headers = await runtimeAuthHeaders();
+    const res = await fetch(`${base}/api/assets?key=${encodeURIComponent(key)}`, { headers });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const u = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = u;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(u);
+  };
+
+  if (!asset) {
+    return <p className="text-xs text-[var(--pa-tertiary)]">{t("canvas.fileUnset")}</p>;
+  }
+
+  if (mime.startsWith("image/")) {
+    if (!blobUrl) {
+      return (
+        <div className="text-xs text-[var(--pa-tertiary)] py-2" data-testid="file-embed-loading">
+          …
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-1">
+        <img src={blobUrl} alt={name} className="max-h-72 rounded-lg border" style={{ borderColor: "var(--pa-divider)" }} />
+        <p className="text-xs text-[var(--pa-tertiary)]">{name}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex items-center gap-2 rounded-lg border px-2 py-1.5 text-sm"
+      style={{ borderColor: "var(--pa-divider)" }}
+      data-testid="file-embed-card"
+    >
+      <span>📎</span>
+      <span className="flex-1 truncate">{name}</span>
+      <span className="text-[var(--pa-tertiary)] text-xs whitespace-nowrap">{mime}</span>
+      <button type="button" className="text-[var(--pa-accent)] text-xs hover:underline" onClick={() => void download()}>
+        {t("file.download")}
+      </button>
+    </div>
+  );
+}
+
+function TodoBlockEditor(props: { block: BlockEntity; pageId: string }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const checked = Boolean(props.block.properties["checked"]);
+  const initial = useMemo(() => extractPlainText(props.block.content), [props.block.content, props.block.id]);
+  const [text, setText] = useState(initial);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setText(extractPlainText(props.block.content));
+  }, [props.block.content, props.block.id]);
+
+  const flush = useCallback(() => {
+    void apiPost("/api/commands", {
+      type: "block.update",
+      payload: { block_id: props.block.id, text },
+      actor_id: "web",
+      actor_type: "human",
+    }).then(() => {
+      void qc.invalidateQueries({ queryKey: ["page", props.pageId] });
+    });
+  }, [props.block.id, props.pageId, text, qc]);
+
+  const setChecked = (next: boolean) => {
+    void apiPost("/api/commands", {
+      type: "block.update",
+      payload: { block_id: props.block.id, properties: { checked: next } },
+      actor_id: "web",
+      actor_type: "human",
+    }).then(() => {
+      void qc.invalidateQueries({ queryKey: ["page", props.pageId] });
+    });
+  };
+
+  return (
+    <div className="flex gap-2 items-start">
+      <input
+        type="checkbox"
+        className="mt-1.5 shrink-0"
+        checked={checked}
+        onChange={(e) => setChecked(e.target.checked)}
+        aria-label={t("editor.slash.todo")}
+      />
+      <textarea
+        className={`w-full resize-none bg-transparent outline-none border-0 p-0 focus:ring-0 ${blockTextClass("paragraph")}`}
+        rows={Math.max(2, text.split("\n").length)}
+        placeholder={t("editor.slashHint")}
+        value={text}
+        onChange={(e) => {
+          const v = e.target.value;
+          setText(v);
+          if (timer.current) clearTimeout(timer.current);
+          timer.current = setTimeout(() => {
+            void apiPost("/api/commands", {
+              type: "block.update",
+              payload: { block_id: props.block.id, text: v },
+              actor_id: "web",
+              actor_type: "human",
+            }).then(() => {
+              void qc.invalidateQueries({ queryKey: ["page", props.pageId] });
+            });
+          }, 450);
+        }}
+        onBlur={() => flush()}
+      />
+    </div>
+  );
+}
+
+function ToggleBlockEditor(props: { block: BlockEntity; pageId: string }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const open = props.block.properties["open"] !== false;
+  const initial = useMemo(() => extractPlainText(props.block.content), [props.block.content, props.block.id]);
+  const [text, setText] = useState(initial);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setText(extractPlainText(props.block.content));
+  }, [props.block.content, props.block.id]);
+
+  const flush = useCallback(() => {
+    void apiPost("/api/commands", {
+      type: "block.update",
+      payload: { block_id: props.block.id, text },
+      actor_id: "web",
+      actor_type: "human",
+    }).then(() => {
+      void qc.invalidateQueries({ queryKey: ["page", props.pageId] });
+    });
+  }, [props.block.id, props.pageId, text, qc]);
+
+  const toggleOpen = () => {
+    void apiPost("/api/commands", {
+      type: "block.update",
+      payload: { block_id: props.block.id, properties: { open: !open } },
+      actor_id: "web",
+      actor_type: "human",
+    }).then(() => {
+      void qc.invalidateQueries({ queryKey: ["page", props.pageId] });
+    });
+  };
+
+  return (
+    <div>
+      <button
+        type="button"
+        className="flex items-center gap-1 text-sm text-[var(--pa-secondary)] mb-1 hover:text-[var(--pa-fg)]"
+        onClick={toggleOpen}
+        aria-expanded={open}
+      >
+        <span className="w-4 text-center">{open ? "▼" : "▶"}</span>
+        <span>{t("editor.slash.toggle")}</span>
+      </button>
+      {open ? (
+        <textarea
+          className={`w-full resize-none bg-transparent outline-none border-0 p-0 focus:ring-0 ${blockTextClass("paragraph")}`}
+          rows={Math.max(2, text.split("\n").length)}
+          placeholder={t("editor.slashHint")}
+          value={text}
+          onChange={(e) => {
+            const v = e.target.value;
+            setText(v);
+            if (timer.current) clearTimeout(timer.current);
+            timer.current = setTimeout(() => {
+              void apiPost("/api/commands", {
+                type: "block.update",
+                payload: { block_id: props.block.id, text: v },
+                actor_id: "web",
+                actor_type: "human",
+              }).then(() => {
+                void qc.invalidateQueries({ queryKey: ["page", props.pageId] });
+              });
+            }, 450);
+          }}
+          onBlur={() => flush()}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function CalloutBlockEditor(props: { block: BlockEntity; pageId: string }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const emoji = String(props.block.properties["emoji"] ?? "💡");
+  const initial = useMemo(() => extractPlainText(props.block.content), [props.block.content, props.block.id]);
+  const [text, setText] = useState(initial);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setText(extractPlainText(props.block.content));
+  }, [props.block.content, props.block.id]);
+
+  const flush = useCallback(() => {
+    void apiPost("/api/commands", {
+      type: "block.update",
+      payload: { block_id: props.block.id, text },
+      actor_id: "web",
+      actor_type: "human",
+    }).then(() => {
+      void qc.invalidateQueries({ queryKey: ["page", props.pageId] });
+    });
+  }, [props.block.id, props.pageId, text, qc]);
+
+  return (
+    <div
+      className="flex gap-2 items-start rounded-md border px-2 py-2"
+      style={{ borderColor: "var(--pa-divider)", background: "var(--pa-hover)" }}
+    >
+      <input
+        className="w-9 text-center bg-transparent border-0 outline-none text-lg"
+        value={emoji}
+        onChange={(e) => {
+          const em = e.target.value.slice(0, 4);
+          void apiPost("/api/commands", {
+            type: "block.update",
+            payload: { block_id: props.block.id, properties: { emoji: em } },
+            actor_id: "web",
+            actor_type: "human",
+          }).then(() => {
+            void qc.invalidateQueries({ queryKey: ["page", props.pageId] });
+          });
+        }}
+        aria-label={t("editor.calloutEmoji")}
+      />
+      <textarea
+        className={`flex-1 resize-none bg-transparent outline-none border-0 p-0 focus:ring-0 ${blockTextClass("paragraph")}`}
+        rows={Math.max(2, text.split("\n").length)}
+        placeholder={t("editor.slashHint")}
+        value={text}
+        onChange={(e) => {
+          const v = e.target.value;
+          setText(v);
+          if (timer.current) clearTimeout(timer.current);
+          timer.current = setTimeout(() => {
+            void apiPost("/api/commands", {
+              type: "block.update",
+              payload: { block_id: props.block.id, text: v },
+              actor_id: "web",
+              actor_type: "human",
+            }).then(() => {
+              void qc.invalidateQueries({ queryKey: ["page", props.pageId] });
+            });
+          }, 450);
+        }}
+        onBlur={() => flush()}
+      />
+    </div>
+  );
+}
+
 function BlockTextEditor(props: {
   block: BlockEntity;
   pageId: string;
   placeholder: string;
   spaceId: string | undefined;
   excludePageId: string;
+  listBullet: boolean;
+  listNumber: string | null;
+  onCreateDatabase: () => Promise<string>;
 }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const initial = useMemo(
     () => extractPlainText(props.block.content),
     [props.block.content, props.block.id],
@@ -152,6 +460,14 @@ function BlockTextEditor(props: {
   const slashWasOpen = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pagePickerSlash, setPagePickerSlash] = useState<null | { slashStart: number; cursorEnd: number }>(null);
+  const [databasePickerSlash, setDatabasePickerSlash] = useState<null | { slashStart: number; cursorEnd: number }>(
+    null,
+  );
+  const [filePickerSlash, setFilePickerSlash] = useState<null | {
+    kind: "file" | "image";
+    slashStart: number;
+    cursorEnd: number;
+  }>(null);
 
   const filteredSlash = useMemo(() => filterSlashCommands(slashQuery, t), [slashQuery, t]);
   const flatSlash = useMemo(() => slashMenuFlat(filteredSlash), [filteredSlash]);
@@ -173,7 +489,16 @@ function BlockTextEditor(props: {
   }, [slashOpen]);
 
   useEffect(() => {
-    if (!slashOpen && !pagePickerSlash) return;
+    if (!filePickerSlash) return;
+    const inp = fileInputRef.current;
+    if (inp) {
+      inp.accept = filePickerSlash.kind === "image" ? "image/*" : "*/*";
+      inp.click();
+    }
+  }, [filePickerSlash]);
+
+  useEffect(() => {
+    if (!slashOpen && !pagePickerSlash && !databasePickerSlash) return;
     const onDoc = (e: MouseEvent) => {
       const m = menuRef.current;
       const ta = textAreaRef.current;
@@ -181,10 +506,11 @@ function BlockTextEditor(props: {
       if (ta?.contains(e.target as Node)) return;
       setSlashOpen(false);
       setPagePickerSlash(null);
+      setDatabasePickerSlash(null);
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
-  }, [slashOpen, pagePickerSlash]);
+  }, [slashOpen, pagePickerSlash, databasePickerSlash]);
 
   const flush = useCallback(() => {
     void apiPost("/api/commands", {
@@ -209,9 +535,12 @@ function BlockTextEditor(props: {
       setSlashOpen(false);
       if (timer.current) clearTimeout(timer.current);
       const nextType = def.blockType ?? "paragraph";
+      const extra = slashDefaultProperties(def);
+      const payload: Record<string, unknown> = { block_id: props.block.id, type: nextType, text: newText };
+      if (extra) payload["properties"] = extra;
       void apiPost("/api/commands", {
         type: "block.update",
-        payload: { block_id: props.block.id, type: nextType, text: newText },
+        payload,
         actor_id: "web",
         actor_type: "human",
       }).then(() => {
@@ -237,6 +566,16 @@ function BlockTextEditor(props: {
     if (def.openPagePicker) {
       setSlashOpen(false);
       setPagePickerSlash({ slashStart: snap.slashStart, cursorEnd: cursor });
+      return;
+    }
+    if (def.openDatabasePicker) {
+      setSlashOpen(false);
+      setDatabasePickerSlash({ slashStart: snap.slashStart, cursorEnd: cursor });
+      return;
+    }
+    if (def.openFilePicker) {
+      setSlashOpen(false);
+      setFilePickerSlash({ kind: def.openFilePicker, slashStart: snap.slashStart, cursorEnd: cursor });
       return;
     }
     applySlashBlockType(def);
@@ -271,6 +610,61 @@ function BlockTextEditor(props: {
     });
   };
 
+  const completeDatabaseFromSlash = (databaseId: string) => {
+    const ctx = databasePickerSlash;
+    if (!ctx) return;
+    const newText = text.slice(0, ctx.slashStart) + text.slice(ctx.cursorEnd);
+    setText(newText);
+    setDatabasePickerSlash(null);
+    if (timer.current) clearTimeout(timer.current);
+    void apiPost("/api/commands", {
+      type: "block.update",
+      payload: {
+        block_id: props.block.id,
+        type: "database",
+        text: newText,
+        properties: { database_id: databaseId },
+      },
+      actor_id: "web",
+      actor_type: "human",
+    }).then(() => {
+      void qc.invalidateQueries({ queryKey: ["page", props.pageId] });
+    });
+  };
+
+  const completeFileFromSlash = (asset: AssetRef) => {
+    const ctx = filePickerSlash;
+    if (!ctx) return;
+    const newText = text.slice(0, ctx.slashStart) + text.slice(ctx.cursorEnd);
+    setText(newText);
+    setFilePickerSlash(null);
+    if (timer.current) clearTimeout(timer.current);
+    void apiPost("/api/commands", {
+      type: "block.update",
+      payload: {
+        block_id: props.block.id,
+        type: "file_embed",
+        text: newText,
+        properties: { asset },
+      },
+      actor_id: "web",
+      actor_type: "human",
+    }).then(() => {
+      void qc.invalidateQueries({ queryKey: ["page", props.pageId] });
+    });
+  };
+
+  const onPickedFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const ctx = filePickerSlash;
+    setFilePickerSlash(null);
+    e.target.value = "";
+    if (!file || !ctx || !props.spaceId) return;
+    if (ctx.kind === "image" && !file.type.startsWith("image/")) return;
+    const asset = await uploadFileForSpace(props.spaceId, file);
+    completeFileFromSlash(asset);
+  };
+
   useEffect(() => {
     return () => {
       if (timer.current) clearTimeout(timer.current);
@@ -278,7 +672,7 @@ function BlockTextEditor(props: {
   }, []);
 
   const syncSlash = (textVal: string, cursor: number) => {
-    if (pagePickerSlash) return;
+    if (pagePickerSlash || databasePickerSlash) return;
     const p = getSlashParse(textVal, cursor);
     if (p.kind === "slash") {
       setSlashQuery(p.query);
@@ -290,73 +684,101 @@ function BlockTextEditor(props: {
 
   const safeSlashIndex = flatSlash.length ? Math.min(slashSelected, flatSlash.length - 1) : 0;
 
-  return (
-    <div className="relative">
-      <textarea
-        ref={textAreaRef}
-        className={`w-full resize-none bg-transparent outline-none border-0 p-0 focus:ring-0 focus-visible:ring-0 rounded-sm ${blockTextClass(props.block.type)}`}
-        rows={Math.max(2, text.split("\n").length)}
-        placeholder={props.placeholder}
-        value={text}
-        onChange={(e) => {
-          const v = e.target.value;
-          const cursor = e.target.selectionStart;
-          setText(v);
-          syncSlash(v, cursor);
-          if (timer.current) clearTimeout(timer.current);
-          timer.current = setTimeout(() => {
-            void apiPost("/api/commands", {
-              type: "block.update",
-              payload: { block_id: props.block.id, text: v },
-              actor_id: "web",
-              actor_type: "human",
-            }).then(() => {
-              void qc.invalidateQueries({ queryKey: ["page", props.pageId] });
-            });
-          }, 450);
-        }}
-        onKeyDown={(e) => {
-          if (pagePickerSlash && e.key === "Escape") {
+  const listPrefix =
+    props.listNumber !== null ? `${props.listNumber}.` : props.listBullet ? "•" : null;
+
+  const ta = (
+    <textarea
+      ref={textAreaRef}
+      className={`w-full resize-none bg-transparent outline-none border-0 p-0 focus:ring-0 focus-visible:ring-0 rounded-sm ${blockTextClass(props.block.type)}`}
+      rows={Math.max(2, text.split("\n").length)}
+      placeholder={props.placeholder}
+      value={text}
+      onChange={(e) => {
+        const v = e.target.value;
+        const cursor = e.target.selectionStart;
+        setText(v);
+        syncSlash(v, cursor);
+        if (timer.current) clearTimeout(timer.current);
+        timer.current = setTimeout(() => {
+          void apiPost("/api/commands", {
+            type: "block.update",
+            payload: { block_id: props.block.id, text: v },
+            actor_id: "web",
+            actor_type: "human",
+          }).then(() => {
+            void qc.invalidateQueries({ queryKey: ["page", props.pageId] });
+          });
+        }, 450);
+      }}
+      onKeyDown={(e) => {
+        if ((pagePickerSlash || databasePickerSlash) && e.key === "Escape") {
+          e.preventDefault();
+          setPagePickerSlash(null);
+          setDatabasePickerSlash(null);
+          return;
+        }
+        if (slashOpen && flatSlash.length > 0 && !pagePickerSlash && !databasePickerSlash) {
+          if (e.key === "ArrowDown") {
             e.preventDefault();
-            setPagePickerSlash(null);
+            setSlashSelected((i) => (i + 1) % flatSlash.length);
             return;
           }
-          if (slashOpen && flatSlash.length > 0 && !pagePickerSlash) {
-            if (e.key === "ArrowDown") {
-              e.preventDefault();
-              setSlashSelected((i) => (i + 1) % flatSlash.length);
-              return;
-            }
-            if (e.key === "ArrowUp") {
-              e.preventDefault();
-              setSlashSelected((i) => (i - 1 + flatSlash.length) % flatSlash.length);
-              return;
-            }
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              const def = flatSlash[safeSlashIndex];
-              if (def) handleSlashPick(def);
-              return;
-            }
-          }
-          if (e.key === "Escape" && slashOpen && !pagePickerSlash) {
+          if (e.key === "ArrowUp") {
             e.preventDefault();
-            setSlashOpen(false);
+            setSlashSelected((i) => (i - 1 + flatSlash.length) % flatSlash.length);
+            return;
           }
-        }}
-        onClick={(e) => syncSlash(text, e.currentTarget.selectionStart)}
-        onSelect={(e) => syncSlash(text, e.currentTarget.selectionStart)}
-        onBlur={() => flush()}
-      />
-      {pagePickerSlash || (slashOpen && flatSlash.length > 0) ? (
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            const def = flatSlash[safeSlashIndex];
+            if (def) handleSlashPick(def);
+            return;
+          }
+        }
+        if (e.key === "Escape" && slashOpen && !pagePickerSlash && !databasePickerSlash) {
+          e.preventDefault();
+          setSlashOpen(false);
+        }
+      }}
+      onClick={(e) => syncSlash(text, e.currentTarget.selectionStart)}
+      onSelect={(e) => syncSlash(text, e.currentTarget.selectionStart)}
+      onBlur={() => flush()}
+    />
+  );
+
+  return (
+    <div className="relative">
+      <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => void onPickedFile(e)} />
+      {listPrefix !== null ? (
+        <div className="flex gap-2 items-start">
+          <span className="shrink-0 w-7 text-right text-[var(--pa-tertiary)] select-none pt-0.5">{listPrefix}</span>
+          <div className="flex-1 min-w-0 relative">{ta}</div>
+        </div>
+      ) : (
+        ta
+      )}
+      {pagePickerSlash || databasePickerSlash || (slashOpen && flatSlash.length > 0) ? (
         <div ref={menuRef} className="absolute left-0 top-full z-30 mt-1">
           {pagePickerSlash ? (
             <PagePickerList
               spaceId={props.spaceId}
+              parentPageId={props.excludePageId}
               excludePageId={props.excludePageId}
               onPick={(id, title) => completePageLinkFromSlash(id, title)}
               onCancel={() => setPagePickerSlash(null)}
             />
+          ) : databasePickerSlash ? (
+            props.spaceId ? (
+              <DatabasePicker
+                spaceId={props.spaceId}
+                onCancel={() => setDatabasePickerSlash(null)}
+                onPickExisting={(id) => completeDatabaseFromSlash(id)}
+                onCreateNew={props.onCreateDatabase}
+              />
+            ) : (
+              <p className="text-xs p-2 bg-[var(--pa-surface)] border rounded-md">{t("editor.pagePickerNoSpace")}</p>
+            )
           ) : (
             <BlockInsertMenu
               t={t}
@@ -387,30 +809,58 @@ export function DocumentCanvas(props: {
   const [menuFilter, setMenuFilter] = useState("");
   const [menuIdx, setMenuIdx] = useState(0);
   const [pagePickerAppend, setPagePickerAppend] = useState(false);
+  const [databasePickerAppend, setDatabasePickerAppend] = useState(false);
+  const [fileAppendKind, setFileAppendKind] = useState<null | "file" | "image">(null);
   const bottomMenuRef = useRef<HTMLDivElement>(null);
+  const bottomFileRef = useRef<HTMLInputElement>(null);
 
   const sorted = useMemo(
     () => [...props.blocks].sort((a, b) => a.sortOrder - b.sortOrder),
     [props.blocks],
   );
   const ids = useMemo(() => sorted.map((b) => b.id), [sorted]);
+  const listMeta = useMemo(() => listMarkersForBlocks(sorted), [sorted]);
 
   const menuFlat = useMemo(() => slashMenuFlat(filterSlashCommands(menuFilter, t)), [menuFilter, t]);
+
+  const createDatabaseAndView = useCallback(async (): Promise<string> => {
+    if (!props.spaceId) throw new Error("space");
+    const res = await apiPost<{ operations?: Array<{ payload?: { database?: { id: string } } }> }>("/api/commands", {
+      type: "db.create",
+      payload: {
+        space_id: props.spaceId,
+        parent_page_id: props.pageId,
+        title: t("db.untitled"),
+      },
+      actor_id: "web",
+      actor_type: "human",
+    });
+    const dbId = res.operations?.[0]?.payload?.database?.id;
+    if (!dbId) throw new Error("no database id");
+    await apiPost("/api/commands", {
+      type: "db.view.create",
+      payload: { database_id: dbId, type: "table", name: t("db.defaultTableView") },
+      actor_id: "web",
+      actor_type: "human",
+    });
+    return dbId;
+  }, [props.pageId, props.spaceId, t]);
 
   useEffect(() => {
     setMenuIdx((i) => Math.min(i, Math.max(0, menuFlat.length - 1)));
   }, [menuFlat.length]);
 
   useEffect(() => {
-    if (!menuOpen && !pagePickerAppend) return;
+    if (!menuOpen && !pagePickerAppend && !databasePickerAppend) return;
     const onDoc = (e: MouseEvent) => {
       if (bottomMenuRef.current?.contains(e.target as Node)) return;
       setMenuOpen(false);
       setPagePickerAppend(false);
+      setDatabasePickerAppend(false);
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
-  }, [menuOpen, pagePickerAppend]);
+  }, [menuOpen, pagePickerAppend, databasePickerAppend]);
 
   useEffect(() => {
     if (menuOpen) {
@@ -418,6 +868,15 @@ export function DocumentCanvas(props: {
       setMenuIdx(0);
     }
   }, [menuOpen]);
+
+  useEffect(() => {
+    if (!fileAppendKind) return;
+    const inp = bottomFileRef.current;
+    if (inp) {
+      inp.accept = fileAppendKind === "image" ? "image/*" : "*/*";
+      inp.click();
+    }
+  }, [fileAppendKind]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -476,8 +935,29 @@ export function DocumentCanvas(props: {
       setPagePickerAppend(true);
       return;
     }
-    void appendBlock(def.blockType ?? "paragraph");
+    if (def.openDatabasePicker) {
+      setMenuOpen(false);
+      setDatabasePickerAppend(true);
+      return;
+    }
+    if (def.openFilePicker) {
+      setMenuOpen(false);
+      setFileAppendKind(def.openFilePicker);
+      return;
+    }
+    void appendBlock(def.blockType ?? "paragraph", { properties: slashDefaultProperties(def) });
     setMenuOpen(false);
+  };
+
+  const onBottomFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const kind = fileAppendKind;
+    setFileAppendKind(null);
+    e.target.value = "";
+    if (!file || !props.spaceId || !kind) return;
+    if (kind === "image" && !file.type.startsWith("image/")) return;
+    const asset = await uploadFileForSpace(props.spaceId, file);
+    await appendBlock("file_embed", { properties: { asset } });
   };
 
   const deleteBlock = async (blockId: string) => {
@@ -498,24 +978,12 @@ export function DocumentCanvas(props: {
     if (b.type === "database") {
       const dbId = String(b.properties["database_id"] ?? "");
       if (!dbId) {
-        return (
-          <p className="text-xs text-[var(--pa-tertiary)]">{t("canvas.databaseUnset")}</p>
-        );
+        return <p className="text-xs text-[var(--pa-tertiary)]">{t("canvas.databaseUnset")}</p>;
       }
       return <InlineDatabaseBlock databaseId={dbId} />;
     }
     if (b.type === "file_embed") {
-      const asset = b.properties["asset"] as Record<string, unknown> | undefined;
-      const name = String(asset?.["display_name"] ?? t("file.open"));
-      return (
-        <div
-          className="flex items-center gap-2 rounded-lg border px-2 py-1.5 text-sm"
-          style={{ borderColor: "var(--pa-divider)" }}
-        >
-          <span>📎</span>
-          <span>{name}</span>
-        </div>
-      );
+      return <FileEmbedBlock block={b} pageId={props.pageId} />;
     }
     if (b.type === "page_link") {
       const linked = String(b.properties["linked_page_id"] ?? "");
@@ -532,6 +1000,16 @@ export function DocumentCanvas(props: {
         </Link>
       );
     }
+    if (b.type === "todo") {
+      return <TodoBlockEditor block={b} pageId={props.pageId} />;
+    }
+    if (b.type === "toggle") {
+      return <ToggleBlockEditor block={b} pageId={props.pageId} />;
+    }
+    if (b.type === "callout") {
+      return <CalloutBlockEditor block={b} pageId={props.pageId} />;
+    }
+    const lm = listMeta[b.id] ?? { bullet: false, number: null };
     return (
       <BlockTextEditor
         block={b}
@@ -539,6 +1017,9 @@ export function DocumentCanvas(props: {
         placeholder={t("editor.slashHint")}
         spaceId={props.spaceId}
         excludePageId={props.pageId}
+        listBullet={lm.bullet}
+        listNumber={lm.number}
+        onCreateDatabase={createDatabaseAndView}
       />
     );
   };
@@ -574,9 +1055,11 @@ export function DocumentCanvas(props: {
       </DndContext>
 
       <div ref={bottomMenuRef} className="relative mt-2 pl-7">
+        <input ref={bottomFileRef} type="file" className="hidden" onChange={(e) => void onBottomFileChange(e)} />
         {pagePickerAppend ? (
           <PagePickerList
             spaceId={props.spaceId}
+            parentPageId={props.pageId}
             excludePageId={props.pageId}
             onPick={(id, title) => {
               setPagePickerAppend(false);
@@ -584,6 +1067,20 @@ export function DocumentCanvas(props: {
             }}
             onCancel={() => setPagePickerAppend(false)}
           />
+        ) : databasePickerAppend ? (
+          props.spaceId ? (
+            <DatabasePicker
+              spaceId={props.spaceId}
+              onCancel={() => setDatabasePickerAppend(false)}
+              onPickExisting={(id) => {
+                setDatabasePickerAppend(false);
+                void appendBlock("database", { properties: { database_id: id } });
+              }}
+              onCreateNew={createDatabaseAndView}
+            />
+          ) : (
+            <p className="text-xs text-[var(--pa-tertiary)]">{t("editor.pagePickerNoSpace")}</p>
+          )
         ) : (
           <>
             <button

@@ -122,6 +122,12 @@ export const DbRowCreatePayload = z.object({
   database_id: z.string().uuid(),
   cells: z.record(z.string(), z.unknown()),
 });
+export const DbRowUpdatePayload = z.object({
+  database_id: z.string().uuid(),
+  row_id: z.string().uuid(),
+  /** Merged into existing row.cells (shallow per-key). */
+  cells: z.record(z.string(), z.unknown()),
+});
 export const DbViewCreatePayload = z.object({
   database_id: z.string().uuid(),
   type: z.enum(["table", "board", "list", "calendar"]),
@@ -186,6 +192,10 @@ export type SlashCommandDef = {
   section?: SlashSection;
   /** When true, UI opens a page search picker instead of inserting immediately. */
   openPagePicker?: boolean;
+  /** When true, UI opens database create/link flow instead of a bare append. */
+  openDatabasePicker?: boolean;
+  /** When set, choosing this command opens a local file picker (after upload, inserts embed). */
+  openFilePicker?: "file" | "image";
 };
 
 export const slashCommandRegistry: SlashCommandDef[] = [
@@ -305,6 +315,27 @@ export const slashCommandRegistry: SlashCommandDef[] = [
     keywords: ["database", "db"],
     icon: "▦",
     section: "basic",
+    openDatabasePicker: true,
+  },
+  {
+    id: "file_embed",
+    commandType: "block.append",
+    labelKey: "editor.slash.file",
+    blockType: "file_embed",
+    keywords: ["file", "upload", "attachment", "datei", "anhang"],
+    icon: "📎",
+    section: "basic",
+    openFilePicker: "file",
+  },
+  {
+    id: "image_embed",
+    commandType: "block.append",
+    labelKey: "editor.slash.image",
+    blockType: "file_embed",
+    keywords: ["image", "img", "picture", "photo", "bild"],
+    icon: "🖼",
+    section: "basic",
+    openFilePicker: "image",
   },
   {
     id: "page_link",

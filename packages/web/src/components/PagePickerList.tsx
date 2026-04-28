@@ -1,13 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { apiGet } from "@/lib/api";
+import { apiGet, apiPost } from "@/lib/api";
 
 type SearchRes = { results: Array<{ id: string; title: string }> };
 type PagesRes = { operations?: Array<{ payload?: { pages?: Array<{ id: string; title: string }> } }> };
 
 type PagePickerListProps = {
   spaceId: string | undefined;
+  /** When creating a page from the picker, set as parent (optional). */
+  parentPageId?: string;
   excludePageId?: string;
   onPick: (pageId: string, title: string) => void;
   onCancel: () => void;
@@ -15,6 +17,7 @@ type PagePickerListProps = {
 
 export function PagePickerList(props: PagePickerListProps) {
   const { t } = useTranslation();
+  const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -33,11 +36,10 @@ export function PagePickerList(props: PagePickerListProps) {
   const { data: pagesData } = useQuery({
     queryKey: ["pages-flat", props.spaceId],
     enabled: Boolean(props.spaceId) && query.length === 0,
-    queryFn: () =>
-      apiGet<PagesRes>(`/api/pages?space_id=${props.spaceId}&all_in_space=1`),
+    queryFn: () => apiGet<PagesRes>(`/api/pages?space_id=${props.spaceId}&all_in_space=1`),
   });
 
-  const rows = useMemo(() => {
+  const baseRows = useMemo(() => {
     const ex = props.excludePageId;
     if (query.length > 0) {
       const r = searchData?.results ?? [];
@@ -49,12 +51,58 @@ export function PagePickerList(props: PagePickerListProps) {
     return filtered.slice(0, 40);
   }, [query, searchData, pagesData, props.excludePageId]);
 
+  const canCreate =
+    Boolean(props.spaceId) &&
+    query.length > 0 &&
+    !baseRows.some((r) => r.title.toLowerCase() === query.toLowerCase());
+
+  const rows = useMemo(() => {
+    if (!canCreate) return baseRows;
+    return [
+      {
+        id: "__create__",
+        title: t("editor.pagePickerCreate", { title: query }),
+      },
+      ...baseRows,
+    ];
+  }, [baseRows, canCreate, query, t]);
+
+  const { mutateAsync: createPage } = useMutation({
+    mutationFn: async (title: string) => {
+      const payload: Record<string, unknown> = {
+        space_id: props.spaceId!,
+        title,
+      };
+      if (props.parentPageId) payload["parent_page_id"] = props.parentPageId;
+      return apiPost<{ operations?: Array<{ payload?: { page?: { id: string } } }> }>("/api/commands", {
+        type: "page.create",
+        payload,
+        actor_id: "web",
+        actor_type: "human",
+      });
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["pages-flat"] });
+      void qc.invalidateQueries({ queryKey: ["page-picker-search"] });
+    },
+  });
+
   useEffect(() => {
     setSelected((i) => Math.min(i, Math.max(0, rows.length - 1)));
   }, [rows.length]);
 
-  const showEmpty =
-    query.length > 0 && searchFetched && rows.length === 0;
+  const showEmpty = query.length > 0 && searchFetched && rows.length === 0;
+
+  const pickRow = async (r: { id: string; title: string }) => {
+    if (r.id === "__create__") {
+      const title = query;
+      const res = await createPage(title);
+      const id = res.operations?.[0]?.payload?.page?.id;
+      if (id) props.onPick(id, title);
+      return;
+    }
+    props.onPick(r.id, r.title || t("canvas.untitled"));
+  };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
@@ -65,8 +113,7 @@ export function PagePickerList(props: PagePickerListProps) {
       setSelected((i) => (rows.length ? (i - 1 + rows.length) % rows.length : 0));
     } else if (e.key === "Enter" && rows[selected]) {
       e.preventDefault();
-      const r = rows[selected]!;
-      props.onPick(r.id, r.title || t("canvas.untitled"));
+      void pickRow(rows[selected]!);
     } else if (e.key === "Escape") {
       e.preventDefault();
       props.onCancel();
@@ -110,15 +157,15 @@ export function PagePickerList(props: PagePickerListProps) {
         ) : (
           rows.map((r, idx) => (
             <button
-              key={r.id}
+              key={r.id === "__create__" ? "__create__" : r.id}
               type="button"
               className={`w-full text-left px-3 py-2 truncate ${
                 idx === selected ? "bg-[var(--pa-hover)]" : "hover:bg-[var(--pa-hover)]"
               }`}
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => props.onPick(r.id, r.title || t("canvas.untitled"))}
+              onClick={() => void pickRow(r)}
             >
-              {r.title || "…"}
+              {r.id === "__create__" ? <span className="text-[var(--pa-accent)]">{r.title}</span> : r.title || "…"}
             </button>
           ))
         )}

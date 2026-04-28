@@ -1,0 +1,41 @@
+# Production Dockerfile for the @pagesai/server Fastify sidecar.
+#
+# The image bundles the deployable server workspace under /app via
+# `pnpm deploy --filter @pagesai/server --prod`, so runtime starts with
+# plain node_modules and no pnpm/workspace resolution.
+
+FROM node:20-bookworm-slim AS builder
+
+WORKDIR /workspace
+
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+COPY scripts ./scripts
+COPY packages ./packages
+
+RUN pnpm install --frozen-lockfile --prefer-offline
+RUN pnpm --filter '@pagesai/server...' build
+RUN pnpm --filter @pagesai/server --prod deploy /out/server \
+    && test -f /out/server/dist/main.js \
+    && test -d /out/server/node_modules/@pagesai/storage/dist/migrations
+
+FROM node:20-bookworm-slim AS runtime
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tini ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY --from=builder /out/server /app
+
+ENV NODE_ENV=production \
+    PORT=3399
+
+EXPOSE 3399
+
+HEALTHCHECK --interval=15s --timeout=5s --retries=4 --start-period=20s \
+    CMD curl -fsS http://localhost:${PORT}/health || exit 1
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["node", "dist/main.js"]

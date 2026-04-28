@@ -74,14 +74,22 @@ export function PageEditor(props: { spaceId: string; hideChrome?: boolean }) {
 
   const spaceForCommands = data?.page.spaceId ?? effectiveSpace;
 
+  const parentForNewPage = search.get("parent") ?? undefined;
+
   const { mutate: runCreatePage } = useMutation({
-    mutationFn: async () =>
-      apiPost<unknown>("/api/commands", {
+    mutationFn: async () => {
+      const payload: Record<string, unknown> = {
+        space_id: effectiveSpace,
+        title: t("palette.newPage"),
+      };
+      if (parentForNewPage) payload["parent_page_id"] = parentForNewPage;
+      return apiPost<unknown>("/api/commands", {
         type: "page.create",
-        payload: { space_id: effectiveSpace, title: t("palette.newPage") },
+        payload,
         actor_id: "web",
         actor_type: "human",
-      }),
+      });
+    },
     onSuccess: (res) => {
       const r = res as { operations?: Array<{ payload?: { page?: { id: string } } }> };
       const id = r.operations?.[0]?.payload?.page?.id;
@@ -94,12 +102,20 @@ export function PageEditor(props: { spaceId: string; hideChrome?: boolean }) {
     },
   });
 
-  const createdRef = useRef(false);
+  const lastAutoCreateKey = useRef<string | null>(null);
   useEffect(() => {
-    if (pageId !== "new" || !effectiveSpace || createdRef.current) return;
-    createdRef.current = true;
+    if (pageId !== "new") {
+      lastAutoCreateKey.current = null;
+    }
+  }, [pageId]);
+
+  useEffect(() => {
+    if (pageId !== "new" || !effectiveSpace) return;
+    const key = `${effectiveSpace}\0${parentForNewPage ?? ""}`;
+    if (lastAutoCreateKey.current === key) return;
+    lastAutoCreateKey.current = key;
     runCreatePage();
-  }, [pageId, effectiveSpace, runCreatePage]);
+  }, [pageId, effectiveSpace, parentForNewPage, runCreatePage]);
 
   const persistPageMeta = async (payload: Record<string, unknown>) => {
     if (!pageId || pageId === "new") return;
@@ -186,14 +202,29 @@ export function PageEditor(props: { spaceId: string; hideChrome?: boolean }) {
           <div className="space-y-1">
             <div className="flex flex-col gap-1 pt-1">
               {showChrome ? (
-                <input
-                  className="w-12 h-12 shrink-0 text-center text-2xl leading-none rounded-lg bg-transparent border-0 outline-none hover:bg-[var(--pa-hover)] focus:bg-[var(--pa-hover)] transition-colors"
-                  placeholder="📄"
-                  value={iconDraft}
-                  aria-label={t("canvas.pageIcon")}
-                  onChange={(e) => setIconDraft(e.target.value)}
-                  onBlur={() => void persistPageMeta({ icon: iconDraft || null })}
-                />
+                <div className="flex items-start gap-2">
+                  <input
+                    className="w-12 h-12 shrink-0 text-center text-2xl leading-none rounded-lg bg-transparent border-0 outline-none hover:bg-[var(--pa-hover)] focus:bg-[var(--pa-hover)] transition-colors"
+                    placeholder="📄"
+                    value={iconDraft}
+                    aria-label={t("canvas.pageIcon")}
+                    onChange={(e) => setIconDraft(e.target.value)}
+                    onBlur={() => void persistPageMeta({ icon: iconDraft || null })}
+                  />
+                  {spaceForCommands ? (
+                    <button
+                      type="button"
+                      className="mt-2 text-sm text-[var(--pa-accent)] hover:underline"
+                      onClick={() =>
+                        nav(
+                          `/pages/p/new?space=${encodeURIComponent(spaceForCommands)}&parent=${encodeURIComponent(pageId)}`,
+                        )
+                      }
+                    >
+                      {t("editor.newSubpage")}
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
               <input
                 className="w-full text-[2.5rem] font-bold leading-tight tracking-tight bg-transparent border-0 outline-none placeholder:text-[var(--pa-tertiary)]"

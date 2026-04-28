@@ -14,7 +14,8 @@ Browser (hof_token)
 
 ## WebSocket
 
-- URL: `wss://host/api/pages/ws?token=<hof_token>` (hofOS strips and re-mints upstream).
+- URL: `wss://host/api/pages/api/ws?hof_token=<hof_token>` (hofOS strips and re-mints upstream).
+- The sidecar receives the upgrade as `/api/ws` with a proxy-minted `Authorization: Bearer <sidecar_jwt>` header.
 
 ## Routes (module)
 

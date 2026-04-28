@@ -1,4 +1,5 @@
 import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import websocket from "@fastify/websocket";
 import { CommandEnvelopeSchema } from "@pagesai/core";
@@ -7,7 +8,9 @@ import { extractPageRefs } from "@pagesai/documents";
 import { createDb, runMigrations, schema } from "@pagesai/storage";
 import { and, eq, ilike, or } from "drizzle-orm";
 import Fastify from "fastify";
+import { randomUUID } from "node:crypto";
 import { resolveAuth, type AuthContext } from "./auth.js";
+import { createS3Client, ensureBucket, getObjectStream, putObjectBytes, type S3Config } from "./s3.js";
 import * as Y from "yjs";
 import { applyUpdate, encodeFullUpdate, getOrCreateRoom } from "./yjs-room.js";
 
@@ -15,6 +18,7 @@ export type ServerOptions = {
   databaseUrl: string;
   devToken?: string;
   jwtSecret?: string;
+  s3?: S3Config;
 };
 
 export async function buildApp(opts: ServerOptions) {
@@ -24,7 +28,15 @@ export async function buildApp(opts: ServerOptions) {
   const app = Fastify({ logger: true });
   await app.register(cors, { origin: true });
   await app.register(rateLimit, { max: 400, timeWindow: "1 minute" });
+  await app.register(multipart, { limits: { fileSize: 52 * 1024 * 1024 } });
   await app.register(websocket);
+
+  let s3Runtime: { client: ReturnType<typeof createS3Client>; bucket: string } | null = null;
+  if (opts.s3) {
+    const client = createS3Client(opts.s3);
+    await ensureBucket(client, opts.s3.bucket);
+    s3Runtime = { client, bucket: opts.s3.bucket };
+  }
 
   app.decorate("db", db);
   app.decorate("sql", sql);
@@ -39,6 +51,7 @@ export async function buildApp(opts: ServerOptions) {
   }
 
   app.addHook("preHandler", async (req, reply) => {
+    if (req.url === "/health") return;
     if (req.url.startsWith("/api/ws")) return;
     const auth = await resolveAuth(req, { devToken: opts.devToken, jwtSecret: opts.jwtSecret });
     if (!auth) {
@@ -167,6 +180,26 @@ export async function buildApp(opts: ServerOptions) {
     return { comments: list };
   });
 
+  app.get("/api/databases", async (req, reply) => {
+    const auth = (req as typeof req & { auth: AuthContext }).auth;
+    const spaceId = (req.query as { space_id?: string }).space_id;
+    if (!spaceId) {
+      reply.code(400).send({ error: { code: "VALIDATION", message: "space_id required" } });
+      return;
+    }
+    const space = await db
+      .select()
+      .from(schema.spaces)
+      .where(and(eq(schema.spaces.id, spaceId), eq(schema.spaces.tenantId, auth.tenantId)))
+      .limit(1);
+    if (!space[0]) {
+      reply.code(404).send({ error: { code: "NOT_FOUND", message: "space" } });
+      return;
+    }
+    const list = await db.select().from(schema.databases).where(eq(schema.databases.spaceId, spaceId));
+    return { databases: list };
+  });
+
   app.get("/api/databases/:id", async (req, reply) => {
     const auth = (req as typeof req & { auth: AuthContext }).auth;
     const id = (req.params as { id: string }).id;
@@ -185,6 +218,73 @@ export async function buildApp(opts: ServerOptions) {
       .from(schema.databaseViews)
       .where(eq(schema.databaseViews.databaseId, id));
     return { database: d[0].databases, views };
+  });
+
+  app.post("/api/spaces/:spaceId/upload", async (req, reply) => {
+    const auth = (req as typeof req & { auth: AuthContext }).auth;
+    if (!s3Runtime) {
+      reply
+        .code(503)
+        .send({ error: { code: "UNAVAILABLE", message: "Object storage is not configured" } });
+      return;
+    }
+    const spaceId = (req.params as { spaceId: string }).spaceId;
+    const space = await db
+      .select()
+      .from(schema.spaces)
+      .where(and(eq(schema.spaces.id, spaceId), eq(schema.spaces.tenantId, auth.tenantId)))
+      .limit(1);
+    if (!space[0]) {
+      reply.code(404).send({ error: { code: "NOT_FOUND", message: "space" } });
+      return;
+    }
+    const file = await req.file();
+    if (!file) {
+      reply.code(400).send({ error: { code: "VALIDATION", message: "file field required" } });
+      return;
+    }
+    const buf = await file.toBuffer();
+    const mime = file.mimetype || "application/octet-stream";
+    const orig = file.filename || "upload";
+    const safe = orig.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 120);
+    const key = `${auth.tenantId}/${spaceId}/${randomUUID()}-${safe}`;
+    await putObjectBytes(s3Runtime.client, s3Runtime.bucket, key, buf, mime);
+    return {
+      asset: {
+        provider: "standalone-s3",
+        object_key: key,
+        mime_type: mime,
+        display_name: orig,
+        size_bytes: buf.length,
+      },
+    };
+  });
+
+  app.get("/api/assets", async (req, reply) => {
+    const auth = (req as typeof req & { auth: AuthContext }).auth;
+    if (!s3Runtime) {
+      reply
+        .code(503)
+        .send({ error: { code: "UNAVAILABLE", message: "Object storage is not configured" } });
+      return;
+    }
+    const key = (req.query as { key?: string }).key;
+    if (!key || typeof key !== "string") {
+      reply.code(400).send({ error: { code: "VALIDATION", message: "key query required" } });
+      return;
+    }
+    if (!key.startsWith(`${auth.tenantId}/`)) {
+      reply.code(403).send({ error: { code: "FORBIDDEN", message: "invalid key" } });
+      return;
+    }
+    try {
+      const { body, contentType } = await getObjectStream(s3Runtime.client, s3Runtime.bucket, key);
+      reply.header("Content-Type", contentType ?? "application/octet-stream");
+      reply.header("Cache-Control", "private, max-age=3600");
+      return reply.send(body);
+    } catch {
+      reply.code(404).send({ error: { code: "NOT_FOUND", message: "asset" } });
+    }
   });
 
   app.post("/api/databases/:id/query", async (req, reply) => {
@@ -233,16 +333,12 @@ export async function buildApp(opts: ServerOptions) {
   app.get("/health", async () => ({ ok: true }));
 
   app.register(async function (fastify) {
-    fastify.get("/api/ws", { websocket: true }, (socket, req) => {
-      const authHeader = req.headers.authorization;
-      const token =
-        typeof authHeader === "string" && authHeader.startsWith("Bearer ")
-          ? authHeader.slice(7)
-          : null;
-      /** ws auth optional in dev — query token for hofOS */
-      const q = req.query as { token?: string; pageId?: string };
-      void token;
-      void q;
+    fastify.get("/api/ws", { websocket: true }, async (socket, req) => {
+      const auth = await resolveAuth(req, { devToken: opts.devToken, jwtSecret: opts.jwtSecret });
+      if (!auth) {
+        socket.close(1008, "unauthorized");
+        return;
+      }
 
       socket.on("message", (raw: unknown) => {
         try {
