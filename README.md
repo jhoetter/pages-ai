@@ -68,3 +68,14 @@ pnpm quality  # install Playwright Chromium, integration, e2e (e2e bootstraps Do
 ## Specs
 
 Authoritative design docs live in [`spec/shared/`](spec/shared/) and [`spec/research/`](spec/research/).
+
+## Consumed Via Tarball URL
+
+The hofOS host consumes the built UI package from GitHub Releases rather than copying source trampolines into customer cells. Each release attaches `pagesai-ui-<version>.tgz`, installable with:
+
+```json
+"@pagesai/hofos-ui": "https://github.com/jhoetter/pages-ai/releases/download/v0.1.0/pagesai-ui-0.1.0.tgz"
+```
+
+For local iteration, run `pnpm run build:dist` or point hofOS' local-dev override at `packages/hofos-ui`.
+

@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "version": "0.1.0",
-  "description": "PagesAI — Notion-alike workspace (hofOS sister product)",
+  "description": "PagesAI \u2014 Notion-alike workspace (hofOS sister product)",
   "license": "MIT",
   "packageManager": "pnpm@9.15.4",
   "engines": {
@@ -23,7 +23,8 @@
     "quality": "pnpm --filter @pagesai/web exec playwright install chromium && pnpm test:integration && pnpm --filter @pagesai/web test:e2e",
     "hofos:check": "node scripts/check-hofos-ui-contract.mjs",
     "hofos:harness": "HOFOS_MODE=1 VITE_HOFOS_MODE=1 pnpm --filter @pagesai/web build && node scripts/check-hofos-harness-smoke.mjs",
-    "export:hofos-ui": "node scripts/export-hofos-ui.mjs"
+    "export:hofos-ui": "node scripts/export-hofos-ui.mjs",
+    "build:dist": "pnpm --filter @pagesai/hofos-ui build:dist"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
