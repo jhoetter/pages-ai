@@ -6,6 +6,14 @@ import { useNavigate } from "react-router";
 import { apiGet } from "@/lib/api";
 
 type SearchRes = { results: Array<{ id: string; title: string }> };
+const GLOBAL_APP_LINKS = [
+  { id: "os", label: "App", href: "http://localhost:3000/" },
+  { id: "hofos", label: "hofOS", href: "http://localhost:3600/customers" },
+  { id: "mailai", label: "Mail", href: "http://localhost:3010/inbox" },
+  { id: "collabai", label: "Chat", href: "http://localhost:8010/" },
+  { id: "driveai", label: "Drive", href: "http://localhost:3520/drive/home" },
+  { id: "pagesai", label: "Pages", href: "http://localhost:3399/pages" },
+] as const;
 
 export function CommandPalette(props: {
   open: boolean;
@@ -167,6 +175,18 @@ export function CommandPalette(props: {
             >
               {t("nav.pages")}
             </Command.Item>
+            {GLOBAL_APP_LINKS.map((app) => (
+              <Command.Item
+                key={app.id}
+                onSelect={() => {
+                  window.location.href = app.href;
+                  props.onOpenChange(false);
+                }}
+                className="px-3 py-2 rounded-md mx-1 cursor-pointer aria-selected:bg-[var(--pa-hover)]"
+              >
+                Open {app.label}
+              </Command.Item>
+            ))}
           </Command.Group>
         </Command.List>
       </Command>

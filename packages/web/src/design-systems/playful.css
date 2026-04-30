@@ -1,0 +1,27 @@
+/* hofOS playful preset mapped to PagesAI's --pa-* bridge variables. */
+:root {
+  --hof-pa-bg: #faf8ff;
+  --hof-pa-fg: #1e1b4b;
+  --hof-pa-surface: #f5f3ff;
+  --hof-pa-hover: #ede9fe;
+  --hof-pa-divider: #e9e5f5;
+  --hof-pa-secondary: #6b7280;
+  --hof-pa-tertiary: #a1a1aa;
+  --hof-pa-accent: #7c3aed;
+  --hof-pa-warning: #f97316;
+  --hof-pa-danger: #e11d48;
+  --hof-pa-success: #10b981;
+  --hof-pa-radius-sm: 6px;
+  --hof-pa-radius-md: 8px;
+  --hof-pa-dark-bg: #0f0a1a;
+  --hof-pa-dark-fg: #ede9fe;
+  --hof-pa-dark-surface: #1a1425;
+  --hof-pa-dark-hover: #2a1f3d;
+  --hof-pa-dark-divider: #2e2640;
+  --hof-pa-dark-secondary: #a5b4fc;
+  --hof-pa-dark-tertiary: #6b7280;
+  --hof-pa-dark-accent: #a78bfa;
+  --hof-pa-dark-warning: #fb923c;
+  --hof-pa-dark-danger: #fb7185;
+  --hof-pa-dark-success: #34d399;
+}

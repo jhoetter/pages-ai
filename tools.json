@@ -8,6 +8,46 @@
       "command": "pages-agent status",
       "summary": "Return PagesAI status.",
       "args": []
+    },
+    {
+      "name": "page list",
+      "command": "pages-agent page list",
+      "summary": "List pages.",
+      "args": []
+    },
+    {
+      "name": "page read",
+      "command": "pages-agent page read",
+      "summary": "Read a page by id.",
+      "args": [{ "name": "id", "type": "string", "required": true }]
+    },
+    {
+      "name": "page create",
+      "command": "pages-agent page create",
+      "summary": "Create a page.",
+      "args": [
+        { "name": "title", "type": "string", "required": true },
+        { "name": "parent", "type": "string", "required": false }
+      ]
+    },
+    {
+      "name": "page update",
+      "command": "pages-agent page update",
+      "summary": "Update page content.",
+      "args": [
+        { "name": "id", "type": "string", "required": true },
+        { "name": "content", "type": "string", "required": true }
+      ]
+    },
+    {
+      "name": "block insert",
+      "command": "pages-agent block insert",
+      "summary": "Insert a block into a page.",
+      "args": [
+        { "name": "page", "type": "string", "required": true },
+        { "name": "after", "type": "string", "required": false },
+        { "name": "content", "type": "string", "required": true }
+      ]
     }
   ],
   "function_wrappers": [],

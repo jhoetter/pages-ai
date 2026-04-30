@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@pagesai-design-system.css";
 
 /*
  * Theming surface for PagesAI standalone and sister hosts (e.g. hof-os).
@@ -7,34 +8,34 @@
  */
 :root,
 [data-theme="light"] {
-  --pa-bg: #f7f6f3;
-  --pa-fg: #1a1a1a;
-  --pa-surface: #ffffff;
-  --pa-hover: rgba(0, 0, 0, 0.06);
-  --pa-divider: rgba(0, 0, 0, 0.09);
-  --pa-secondary: #6b6b6b;
-  --pa-tertiary: #9b9b9b;
-  --pa-accent: #2563eb;
-  --pa-warning: #d97706;
-  --pa-danger: #dc2626;
-  --pa-success: #16a34a;
-  --pa-radius-sm: 4px;
-  --pa-radius-md: 6px;
+  --pa-bg: var(--hof-pa-bg, #f7f6f3);
+  --pa-fg: var(--hof-pa-fg, #1a1a1a);
+  --pa-surface: var(--hof-pa-surface, #ffffff);
+  --pa-hover: var(--hof-pa-hover, rgba(0, 0, 0, 0.06));
+  --pa-divider: var(--hof-pa-divider, rgba(0, 0, 0, 0.09));
+  --pa-secondary: var(--hof-pa-secondary, #6b6b6b);
+  --pa-tertiary: var(--hof-pa-tertiary, #9b9b9b);
+  --pa-accent: var(--hof-pa-accent, #2563eb);
+  --pa-warning: var(--hof-pa-warning, #d97706);
+  --pa-danger: var(--hof-pa-danger, #dc2626);
+  --pa-success: var(--hof-pa-success, #16a34a);
+  --pa-radius-sm: var(--hof-pa-radius-sm, 4px);
+  --pa-radius-md: var(--hof-pa-radius-md, 6px);
   --pa-popover-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 [data-theme="dark"] {
-  --pa-bg: #191919;
-  --pa-fg: #e6e6e6;
-  --pa-surface: #202020;
-  --pa-hover: rgba(255, 255, 255, 0.06);
-  --pa-divider: rgba(255, 255, 255, 0.1);
-  --pa-secondary: #a3a3a3;
-  --pa-tertiary: #737373;
-  --pa-accent: #60a5fa;
-  --pa-warning: #fbbf24;
-  --pa-danger: #f87171;
-  --pa-success: #4ade80;
+  --pa-bg: var(--hof-pa-dark-bg, #191919);
+  --pa-fg: var(--hof-pa-dark-fg, #e6e6e6);
+  --pa-surface: var(--hof-pa-dark-surface, #202020);
+  --pa-hover: var(--hof-pa-dark-hover, rgba(255, 255, 255, 0.06));
+  --pa-divider: var(--hof-pa-dark-divider, rgba(255, 255, 255, 0.1));
+  --pa-secondary: var(--hof-pa-dark-secondary, #a3a3a3);
+  --pa-tertiary: var(--hof-pa-dark-tertiary, #737373);
+  --pa-accent: var(--hof-pa-dark-accent, #60a5fa);
+  --pa-warning: var(--hof-pa-dark-warning, #fbbf24);
+  --pa-danger: var(--hof-pa-dark-danger, #f87171);
+  --pa-success: var(--hof-pa-dark-success, #4ade80);
   --pa-popover-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
