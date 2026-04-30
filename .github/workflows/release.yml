@@ -127,7 +127,10 @@ jobs:
             --arg source_sha "${SOURCE_SHA}" \
             --arg image_ref "${IMAGE_REF}" \
             '{version: $version, tag: $tag, source_sha: $source_sha, image_ref: $image_ref}')"
+          request="$(jq -nc \
+            --arg event_type pagesai-released \
+            --argjson client_payload "${payload}" \
+            '{event_type: $event_type, client_payload: $client_payload}')"
           gh api repos/jhoetter/hof-os/dispatches \
-            -X POST \
-            -f event_type=pagesai-released \
-            --raw-field client_payload="${payload}"
+            --method POST \
+            --input - <<< "${request}"
