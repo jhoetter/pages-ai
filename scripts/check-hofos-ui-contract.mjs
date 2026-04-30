@@ -67,7 +67,33 @@ function sampleRoute(route) {
 const config = readJson(CONFIG_PATH);
 const hofOsPath = resolve(ROOT, process.env.HOF_OS_PATH ?? config.hofOsPath ?? "../hof-os");
 const contractPath = join(hofOsPath, "infra", "sister-ui-contract.json");
-const contract = readJson(contractPath);
+const fallbackContract = {
+  host: { uiPackageJson: "" },
+  dependencyPolicy: { packages: [], temporaryAllowedMajorSkew: {} },
+  products: {
+    pagesai: {
+      proxyPrefix: "/api/pages",
+      hostRoutes: [
+        "/pages",
+        "/pages/p/:pageId",
+        "/pages/p/:pageId?block=:blockId",
+        "/pages/space/:spaceId",
+        "/pages/db/:databaseId",
+        "/pages/db/:databaseId?view=:viewId",
+        "/pages/templates",
+        "/pages/settings",
+      ],
+      export: {
+        destinations: {
+          "ui/original": "packages/web/src",
+          "ui/vendor/pagesai-core": "packages/core/src",
+          "ui/vendor/pagesai-documents": "packages/documents/src",
+        },
+      },
+    },
+  },
+};
+const contract = existsSync(contractPath) ? readJson(contractPath) : fallbackContract;
 const product = contract.products[config.product];
 
 if (!product) {
@@ -93,7 +119,7 @@ for (const [destination, source] of Object.entries(product.export.destinations))
 }
 
 const hostPkgPath = join(hofOsPath, contract.host.uiPackageJson);
-const hostDeps = dependencyMap(readJson(hostPkgPath));
+const hostDeps = contract.host.uiPackageJson && existsSync(hostPkgPath) ? dependencyMap(readJson(hostPkgPath)) : {};
 const localPackages = collectPackageJsons(ROOT);
 const allowedSkew = contract.dependencyPolicy.temporaryAllowedMajorSkew?.[config.product] ?? {};
 const warnings = [];
