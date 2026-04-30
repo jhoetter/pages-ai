@@ -1,0 +1,2 @@
+#!/bin/sh
+printf '{"ok":true,"data":{"module":"pagesai","status":"stub"},"error":null}\n'

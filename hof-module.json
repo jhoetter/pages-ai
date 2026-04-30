@@ -1,0 +1,62 @@
+{
+  "$schema": "https://hofos.dev/schemas/hof-module-v1.json",
+  "name": "pagesai",
+  "displayName": "PagesAI",
+  "version": "0.1.0",
+  "contract_version": "1.0.0",
+  "description": "Standalone PagesAI subapp stub for hofOS cells.",
+  "sidecars": [
+    {
+      "name": "pagesai",
+      "image": "ghcr.io/jhoetter/pages-ai:0.1.0",
+      "ports": [
+        {
+          "container": 3399,
+          "public": 4004
+        }
+      ],
+      "auth": {
+        "mode": "inherit"
+      },
+      "healthcheck": {
+        "path": "/health"
+      }
+    }
+  ],
+  "data": {
+    "schema_name": "pagesai",
+    "s3_prefix": "tenants/${tenant}/pages/",
+    "redis_prefix": "pagesai:"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "label": "PagesAI",
+        "icon": "file-text",
+        "entries": [
+          {
+            "label": "Pages",
+            "href": "/pages"
+          },
+          {
+            "label": "Sites",
+            "href": "/sites"
+          }
+        ]
+      }
+    ]
+  },
+  "design": {
+    "consume": true
+  },
+  "agent": {
+    "subagent": {
+      "enabled": false,
+      "system_prompt_path": "agent/system-prompt.md",
+      "tool_allowlist": [
+        "pages-agent status"
+      ],
+      "canvas_route": "/agent-sessions/pagesai/<session_id>"
+    }
+  }
+}
