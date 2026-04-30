@@ -65,7 +65,7 @@ function sampleRoute(route) {
 }
 
 const config = readJson(CONFIG_PATH);
-const hofOsPath = resolve(ROOT, config.hofOsPath ?? "../hof-os");
+const hofOsPath = resolve(ROOT, process.env.HOF_OS_PATH ?? config.hofOsPath ?? "../hof-os");
 const contractPath = join(hofOsPath, "infra", "sister-ui-contract.json");
 const contract = readJson(contractPath);
 const product = contract.products[config.product];
