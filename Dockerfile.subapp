@@ -1,11 +1,44 @@
-# Structural WP-4 subapp Dockerfile stub for PagesAI.
-# Replace this with the product's production image build once the full
-# standalone-subdomain conversion is implemented.
-FROM node:20-bookworm-slim
+# Standalone subapp image for PagesAI: Fastify API + Vite SPA.
+
+FROM node:20-bookworm-slim AS builder
+
+WORKDIR /workspace
+
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+COPY scripts ./scripts
+COPY packages ./packages
+
+RUN pnpm install --frozen-lockfile --prefer-offline
+RUN pnpm --filter '@pagesai/server...' build
+RUN pnpm --filter @pagesai/web build
+RUN pnpm --filter @pagesai/server --prod deploy /out/server \
+    && test -f /out/server/dist/main.js \
+    && test -d /out/server/node_modules/@pagesai/storage/dist/migrations
+
+FROM node:20-bookworm-slim AS runtime
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tini ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
-COPY hof-module.json tools.json ./
+COPY --from=builder /out/server /app
+COPY --from=builder /workspace/packages/web/dist /app/web
+
+COPY hof-module.json tools.json /app/
 COPY cli/pages-agent /usr/local/bin/pages-agent
 RUN chmod +x /usr/local/bin/pages-agent
-ENV HOF_SUBAPP_NAME=pagesai HOF_SUBAPP_AUTH_MODE=inherit
+
+ENV NODE_ENV=production \
+    PORT=3399 \
+    HOF_SUBAPP_NAME=pagesai \
+    HOF_SUBAPP_AUTH_MODE=inherit
+
 EXPOSE 3399
-CMD ["sh", "-c", "while true; do sleep 3600; done"]
+HEALTHCHECK --interval=15s --timeout=5s --retries=4 --start-period=20s \
+    CMD curl -fsS http://localhost:${PORT}/health || exit 1
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["node", "dist/main.js"]

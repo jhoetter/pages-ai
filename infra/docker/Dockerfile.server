@@ -16,6 +16,7 @@ COPY packages ./packages
 
 RUN pnpm install --frozen-lockfile --prefer-offline
 RUN pnpm --filter '@pagesai/server...' build
+RUN pnpm --filter @pagesai/web build
 RUN pnpm --filter @pagesai/server --prod deploy /out/server \
     && test -f /out/server/dist/main.js \
     && test -d /out/server/node_modules/@pagesai/storage/dist/migrations
@@ -28,9 +29,12 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY --from=builder /out/server /app
+COPY --from=builder /workspace/packages/web/dist /app/web
 
 ENV NODE_ENV=production \
-    PORT=3399
+    PORT=3399 \
+    HOF_SUBAPP_NAME=pagesai \
+    HOF_SUBAPP_AUTH_MODE=inherit
 
 EXPOSE 3399
 

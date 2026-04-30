@@ -10,7 +10,9 @@ import { and, eq, ilike, or } from "drizzle-orm";
 import Fastify from "fastify";
 import { randomUUID } from "node:crypto";
 import { resolveAuth, type AuthContext } from "./auth.js";
+import { registerSsoMiddleware } from "./middleware/sso.js";
 import { createS3Client, ensureBucket, getObjectStream, putObjectBytes, type S3Config } from "./s3.js";
+import { registerStaticWeb } from "./static-web.js";
 import * as Y from "yjs";
 import { applyUpdate, encodeFullUpdate, getOrCreateRoom } from "./yjs-room.js";
 
@@ -30,6 +32,7 @@ export async function buildApp(opts: ServerOptions) {
   await app.register(rateLimit, { max: 400, timeWindow: "1 minute" });
   await app.register(multipart, { limits: { fileSize: 52 * 1024 * 1024 } });
   await app.register(websocket);
+  registerSsoMiddleware(app);
 
   let s3Runtime: { client: ReturnType<typeof createS3Client>; bucket: string } | null = null;
   if (opts.s3) {
@@ -371,6 +374,8 @@ export async function buildApp(opts: ServerOptions) {
   app.addHook("onClose", async () => {
     await sql.end({ timeout: 5 });
   });
+
+  await registerStaticWeb(app);
 
   return app;
 }

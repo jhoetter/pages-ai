@@ -1,5 +1,5 @@
-import { jwtVerify } from "jose";
 import type { FastifyRequest } from "fastify";
+import { verifyHofJwt } from "./auth/hof-jwt.js";
 
 export type AuthContext = {
   tenantId: string;
@@ -7,7 +7,17 @@ export type AuthContext = {
   scopes: string[];
 };
 
-const encoder = new TextEncoder();
+function extractSessionCookie(req: FastifyRequest): string | null {
+  const raw = req.headers.cookie;
+  if (typeof raw !== "string") return null;
+  for (const part of raw.split(";")) {
+    const [key, ...value] = part.trim().split("=");
+    if (key === "hof_subapp_session") {
+      return decodeURIComponent(value.join("="));
+    }
+  }
+  return null;
+}
 
 export async function resolveAuth(
   req: FastifyRequest,
@@ -15,24 +25,23 @@ export async function resolveAuth(
 ): Promise<AuthContext | null> {
   const auth = req.headers.authorization;
   const bearer = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
+  const token = bearer ?? extractSessionCookie(req);
 
-  if (opts.jwtSecret && bearer) {
-    try {
-      const { payload } = await jwtVerify(bearer, encoder.encode(opts.jwtSecret), {
-        algorithms: ["HS256"],
-      });
-      const tid = String(payload["tid"] ?? payload["tenant_id"] ?? "default");
-      const sub = String(payload["sub"] ?? "unknown");
-      const scopeStr = String(payload["scopes"] ?? payload["scope"] ?? "read,write");
-      const scopes = scopeStr.split(/[,\s]+/).filter(Boolean);
-      return { tenantId: tid, actorId: sub, scopes };
-    } catch {
-      return null;
-    }
+  if (opts.jwtSecret) {
+    if (!token) return null;
+    const payload = verifyHofJwt(token, "pagesai");
+    if (!payload) return null;
+    const tid = String(payload.tid ?? payload.tenant_id ?? "default");
+    const sub = String(payload.sub ?? "unknown");
+    const rawScopes = payload.scopes ?? payload.scope ?? "read,write";
+    const scopes = Array.isArray(rawScopes)
+      ? rawScopes
+      : String(rawScopes).split(/[,\s]+/).filter(Boolean);
+    return { tenantId: tid, actorId: sub, scopes };
   }
 
   if (opts.devToken) {
-    if (bearer === opts.devToken) {
+    if (token === opts.devToken) {
       return { tenantId: "dev-tenant", actorId: "dev-user", scopes: ["read", "write", "admin"] };
     }
     return null;
