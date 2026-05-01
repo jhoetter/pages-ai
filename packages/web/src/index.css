@@ -2,6 +2,50 @@
 @import "@hofos/shell-ui/theme.css";
 @import "@pagesai-design-system.css";
 
+:root,
+:root.hof-theme-light,
+[data-theme="light"] {
+  --color-background: var(--hof-pa-bg);
+  --color-foreground: var(--hof-pa-fg);
+  --color-card: var(--hof-pa-bg);
+  --color-sidebar-background: var(--hof-pa-surface);
+  --color-border: var(--hof-pa-divider);
+  --color-accent: var(--hof-pa-accent);
+  --color-muted-foreground: var(--hof-pa-secondary);
+  --color-primary: var(--hof-pa-fg);
+  --color-primary-foreground: var(--hof-pa-bg);
+  --color-input: var(--hof-pa-bg);
+  --color-hover: var(--hof-pa-hover);
+  --color-surface: var(--hof-pa-surface);
+  --color-secondary: var(--hof-pa-secondary);
+  --color-tertiary: var(--hof-pa-tertiary);
+  --color-divider: var(--hof-pa-divider);
+  --font-sans: var(--hof-pa-font-sans);
+  --hof-body-font-features: var(--hof-pa-font-features);
+  --hof-radius-sm: var(--hof-pa-radius-sm);
+  --hof-radius-md: var(--hof-pa-radius-md);
+  --hof-radius-lg: var(--hof-pa-radius-md);
+}
+
+:root.hof-theme-dark,
+[data-theme="dark"] {
+  --color-background: var(--hof-pa-dark-bg);
+  --color-foreground: var(--hof-pa-dark-fg);
+  --color-card: var(--hof-pa-dark-surface);
+  --color-sidebar-background: var(--hof-pa-dark-surface);
+  --color-border: var(--hof-pa-dark-divider);
+  --color-accent: var(--hof-pa-dark-accent);
+  --color-muted-foreground: var(--hof-pa-dark-secondary);
+  --color-primary: var(--hof-pa-dark-fg);
+  --color-primary-foreground: var(--hof-pa-dark-bg);
+  --color-input: var(--hof-pa-dark-surface);
+  --color-hover: var(--hof-pa-dark-hover);
+  --color-surface: var(--hof-pa-dark-surface);
+  --color-secondary: var(--hof-pa-dark-secondary);
+  --color-tertiary: var(--hof-pa-dark-tertiary);
+  --color-divider: var(--hof-pa-dark-divider);
+}
+
 /*
  * Theming surface for PagesAI standalone and sister hosts (e.g. hof-os).
  * Override these --pa-* variables from a parent design system; avoid hard-coding
@@ -66,15 +110,8 @@ body,
   margin: 0;
   background: var(--pa-bg);
   color: var(--pa-fg);
-  font-family:
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    Helvetica,
-    Arial,
-    sans-serif;
+  font-family: var(--font-sans);
+  font-feature-settings: var(--hof-body-font-features);
   font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;

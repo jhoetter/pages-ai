@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap");
+
 /* hofOS playful preset mapped to PagesAI's --pa-* bridge variables. */
 :root {
   --hof-pa-bg: #faf8ff;
@@ -13,6 +15,8 @@
   --hof-pa-success: #10b981;
   --hof-pa-radius-sm: 6px;
   --hof-pa-radius-md: 8px;
+  --hof-pa-font-sans: "Nunito", system-ui, -apple-system, sans-serif;
+  --hof-pa-font-features: "cv02", "cv03", "cv04", "cv11";
   --hof-pa-dark-bg: #0f0a1a;
   --hof-pa-dark-fg: #ede9fe;
   --hof-pa-dark-surface: #1a1425;

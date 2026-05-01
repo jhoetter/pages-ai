@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
 /* hofOS default preset mapped to PagesAI's --pa-* bridge variables. */
 :root {
   --hof-pa-bg: #ffffff;
@@ -13,6 +15,8 @@
   --hof-pa-success: #2f7d59;
   --hof-pa-radius-sm: 4px;
   --hof-pa-radius-md: 6px;
+  --hof-pa-font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --hof-pa-font-features: "cv02", "cv03", "cv04", "cv11";
   --hof-pa-dark-bg: #191919;
   --hof-pa-dark-fg: #e3e2e0;
   --hof-pa-dark-surface: #202020;

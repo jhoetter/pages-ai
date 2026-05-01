@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap");
+
 /* hofOS conservative preset mapped to PagesAI's --pa-* bridge variables. */
 :root {
   --hof-pa-bg: #fafaf9;
@@ -13,6 +15,8 @@
   --hof-pa-success: #047857;
   --hof-pa-radius-sm: 0px;
   --hof-pa-radius-md: 2px;
+  --hof-pa-font-sans: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --hof-pa-font-features: normal;
   --hof-pa-dark-bg: #0c0a09;
   --hof-pa-dark-fg: #fafaf9;
   --hof-pa-dark-surface: #1c1917;
