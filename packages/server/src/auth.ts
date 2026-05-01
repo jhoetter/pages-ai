@@ -4,6 +4,8 @@ import { verifyHofJwt } from "./auth/hof-jwt.js";
 export type AuthContext = {
   tenantId: string;
   actorId: string;
+  email?: string;
+  displayName?: string;
   scopes: string[];
 };
 
@@ -37,16 +39,38 @@ export async function resolveAuth(
     const scopes = Array.isArray(rawScopes)
       ? rawScopes
       : String(rawScopes).split(/[,\s]+/).filter(Boolean);
-    return { tenantId: tid, actorId: sub, scopes };
+    return {
+      tenantId: tid,
+      actorId: sub,
+      ...(typeof payload.email === "string" ? { email: payload.email } : {}),
+      ...(typeof payload.displayName === "string"
+        ? { displayName: payload.displayName }
+        : typeof payload.display_name === "string"
+          ? { displayName: payload.display_name }
+          : {}),
+      scopes,
+    };
   }
 
   if (opts.devToken) {
     if (token === opts.devToken) {
-      return { tenantId: "dev-tenant", actorId: "dev-user", scopes: ["read", "write", "admin"] };
+      return {
+        tenantId: "dev-tenant",
+        actorId: "dev-user",
+        email: "dev@local",
+        displayName: "Dev User",
+        scopes: ["read", "write", "admin"],
+      };
     }
     return null;
   }
 
   /** Dev permissive when no auth configured */
-  return { tenantId: "dev-tenant", actorId: "dev-user", scopes: ["read", "write", "admin"] };
+  return {
+    tenantId: "dev-tenant",
+    actorId: "dev-user",
+    email: "dev@local",
+    displayName: "Dev User",
+    scopes: ["read", "write", "admin"],
+  };
 }

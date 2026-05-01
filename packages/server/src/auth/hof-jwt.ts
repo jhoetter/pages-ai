@@ -8,6 +8,9 @@ export interface HofJwtClaims {
   readonly sub?: string;
   readonly tid?: string;
   readonly tenant_id?: string;
+  readonly email?: string;
+  readonly displayName?: string;
+  readonly display_name?: string;
   readonly scopes?: string[] | string;
   readonly scope?: string;
   readonly exp?: number;

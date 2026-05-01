@@ -3,6 +3,8 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import {
   HofShellLayout,
   HOF_SHELL_APP_LINKS,
+  fetchHofShellUser,
+  type HofShellUser,
   type HofShellNavGroup,
 } from "@hofos/shell-ui";
 import { useTranslation } from "react-i18next";
@@ -15,6 +17,7 @@ export function WorkspaceShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shellUser, setShellUser] = useState<HofShellUser | null>(null);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -26,6 +29,16 @@ export function WorkspaceShell() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    void fetchHofShellUser({ endpoint: "/api/me", fallbackName: "Pages" }).then((user) => {
+      if (alive) setShellUser(user);
+    });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const navGroups = useMemo<HofShellNavGroup[]>(
@@ -67,7 +80,7 @@ export function WorkspaceShell() {
       appLinks={HOF_SHELL_APP_LINKS.map((link) =>
         link.id === "pagesai" ? { ...link, href: "/pages" } : link,
       )}
-      user={{ name: "Pages user", initials: "PA" }}
+      user={shellUser}
       onCommand={() => setPaletteOpen(true)}
       onNavigate={(path) => {
         if (path.startsWith("/")) navigate(path);

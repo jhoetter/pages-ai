@@ -79,6 +79,17 @@ export async function buildApp(opts: ServerOptions) {
     return result;
   });
 
+  app.get("/api/me", async (req) => {
+    const auth = (req as typeof req & { auth: AuthContext }).auth;
+    return {
+      userId: auth.actorId,
+      actorId: auth.actorId,
+      tenantId: auth.tenantId,
+      email: auth.email ?? null,
+      displayName: auth.displayName ?? auth.email ?? auth.actorId,
+    };
+  });
+
   app.get("/api/spaces", async (req) => {
     const auth = (req as typeof req & { auth: AuthContext }).auth;
     return handleCommand(
