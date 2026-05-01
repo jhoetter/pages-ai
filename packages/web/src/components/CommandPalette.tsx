@@ -8,11 +8,11 @@ import { apiGet } from "@/lib/api";
 type SearchRes = { results: Array<{ id: string; title: string }> };
 const GLOBAL_APP_LINKS = [
   { id: "os", label: "App", href: "http://localhost:3000/" },
-  { id: "hofos", label: "hofOS", href: "http://localhost:3600/customers" },
-  { id: "mailai", label: "Mail", href: "http://localhost:3010/inbox" },
-  { id: "collabai", label: "Chat", href: "http://localhost:8010/" },
-  { id: "driveai", label: "Drive", href: "http://localhost:3520/drive/home" },
-  { id: "pagesai", label: "Pages", href: "http://localhost:3399/pages" },
+  { id: "hofos", label: "hofOS", href: "http://localhost:3000/__subapps/hofos/customers" },
+  { id: "mailai", label: "Mail", href: "http://localhost:3000/__subapps/mailai/inbox" },
+  { id: "collabai", label: "Chat", href: "http://localhost:3000/__subapps/collabai/" },
+  { id: "driveai", label: "Drive", href: "http://localhost:3000/__subapps/driveai/drive/home" },
+  { id: "pagesai", label: "Pages", href: "/pages" },
 ] as const;
 
 export function CommandPalette(props: {

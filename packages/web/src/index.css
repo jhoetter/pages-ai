@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@hofos/shell-ui/theme.css";
 @import "@pagesai-design-system.css";
 
 /*
@@ -7,15 +8,16 @@
  * brand colors in components.
  */
 :root,
-[data-theme="light"] {
-  --pa-bg: var(--hof-pa-bg, #f7f6f3);
-  --pa-fg: var(--hof-pa-fg, #1a1a1a);
-  --pa-surface: var(--hof-pa-surface, #ffffff);
-  --pa-hover: var(--hof-pa-hover, rgba(0, 0, 0, 0.06));
-  --pa-divider: var(--hof-pa-divider, rgba(0, 0, 0, 0.09));
-  --pa-secondary: var(--hof-pa-secondary, #6b6b6b);
-  --pa-tertiary: var(--hof-pa-tertiary, #9b9b9b);
-  --pa-accent: var(--hof-pa-accent, #2563eb);
+[data-theme="light"],
+:root.hof-theme-light {
+  --pa-bg: var(--color-background, var(--hof-pa-bg, #ffffff));
+  --pa-fg: var(--color-foreground, var(--hof-pa-fg, #37352f));
+  --pa-surface: var(--color-sidebar-background, var(--hof-pa-surface, #fbfbfa));
+  --pa-hover: var(--color-hover, var(--hof-pa-hover, #f7f7f5));
+  --pa-divider: var(--color-border, var(--hof-pa-divider, #e9e9e7));
+  --pa-secondary: var(--color-muted-foreground, var(--hof-pa-secondary, #787774));
+  --pa-tertiary: var(--hof-pa-tertiary, #9b9a97);
+  --pa-accent: var(--color-accent, var(--hof-pa-accent, #2383e2));
   --pa-warning: var(--hof-pa-warning, #d97706);
   --pa-danger: var(--hof-pa-danger, #dc2626);
   --pa-success: var(--hof-pa-success, #16a34a);
@@ -24,19 +26,37 @@
   --pa-popover-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
+:root.hof-theme-dark,
 [data-theme="dark"] {
-  --pa-bg: var(--hof-pa-dark-bg, #191919);
-  --pa-fg: var(--hof-pa-dark-fg, #e6e6e6);
-  --pa-surface: var(--hof-pa-dark-surface, #202020);
-  --pa-hover: var(--hof-pa-dark-hover, rgba(255, 255, 255, 0.06));
-  --pa-divider: var(--hof-pa-dark-divider, rgba(255, 255, 255, 0.1));
-  --pa-secondary: var(--hof-pa-dark-secondary, #a3a3a3);
+  --pa-bg: var(--color-background, var(--hof-pa-dark-bg, #191919));
+  --pa-fg: var(--color-foreground, var(--hof-pa-dark-fg, #e3e2e0));
+  --pa-surface: var(--color-sidebar-background, var(--hof-pa-dark-surface, #202020));
+  --pa-hover: var(--color-hover, var(--hof-pa-dark-hover, #252525));
+  --pa-divider: var(--color-border, var(--hof-pa-dark-divider, #2f2f2f));
+  --pa-secondary: var(--color-muted-foreground, var(--hof-pa-dark-secondary, #9b9a97));
   --pa-tertiary: var(--hof-pa-dark-tertiary, #737373);
   --pa-accent: var(--hof-pa-dark-accent, #60a5fa);
   --pa-warning: var(--hof-pa-dark-warning, #fbbf24);
   --pa-danger: var(--hof-pa-dark-danger, #f87171);
   --pa-success: var(--hof-pa-dark-success, #4ade80);
   --pa-popover-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.hof-theme-light):not(.hof-theme-dark):not([data-theme="light"]):not([data-theme="dark"]) {
+    --pa-bg: var(--color-background, var(--hof-pa-dark-bg, #191919));
+    --pa-fg: var(--color-foreground, var(--hof-pa-dark-fg, #e3e2e0));
+    --pa-surface: var(--color-sidebar-background, var(--hof-pa-dark-surface, #202020));
+    --pa-hover: var(--color-hover, var(--hof-pa-dark-hover, #252525));
+    --pa-divider: var(--color-border, var(--hof-pa-dark-divider, #2f2f2f));
+    --pa-secondary: var(--color-muted-foreground, var(--hof-pa-dark-secondary, #9b9a97));
+    --pa-tertiary: var(--hof-pa-dark-tertiary, #737373);
+    --pa-accent: var(--color-accent, var(--hof-pa-dark-accent, #529cca));
+    --pa-warning: var(--hof-pa-dark-warning, #fbbf24);
+    --pa-danger: var(--hof-pa-dark-danger, #f87171);
+    --pa-success: var(--hof-pa-dark-success, #4ade80);
+    --pa-popover-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
 }
 
 html,
