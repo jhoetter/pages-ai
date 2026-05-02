@@ -27,8 +27,8 @@ export default defineConfig({
   server: {
     port: 3400,
     strictPort: true,
-    /** Playwright and API calls use 127.0.0.1; default `localhost` can be IPv6-only on some hosts. */
-    host: "127.0.0.1",
+    /** Browser-facing dev URL is http://localhost:3400; API proxy targets stay on IPv4 loopback. */
+    host: "localhost",
     proxy: {
       "/api": {
         target: process.env.VITE_PAGESAI_API_URL ?? "http://127.0.0.1:3399",

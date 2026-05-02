@@ -19,6 +19,7 @@ export function getRuntimeConfig(): RuntimeConfig | null {
 export function runtimeApiBase(): string {
   if (_config?.apiBase != null && String(_config.apiBase).length > 0) return _config.apiBase;
   if (import.meta.env["VITE_HOFOS_MODE"] === "1") return "/api/pages";
+  if (globalThis.location?.port === "3400") return "";
   return (import.meta.env["VITE_PAGESAI_API_URL"] as string | undefined) ?? "";
 }
 
