@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useShortcut } from "@hofos/ux";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams, useSearchParams } from "react-router";
@@ -31,8 +32,7 @@ export function PageEditor(props: { spaceId: string; hideChrome?: boolean }) {
   const { pageId } = useParams();
   const [search, setSearch] = useSearchParams();
   const block = search.get("block");
-  const commentsOpen =
-    search.get("comments") === "1" || search.get("panel") === "comments";
+  const commentsOpen = search.get("comments") === "1" || search.get("panel") === "comments";
   const { t } = useTranslation();
   const nav = useNavigate();
   const qc = useQueryClient();
@@ -46,16 +46,19 @@ export function PageEditor(props: { spaceId: string; hideChrome?: boolean }) {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setPalette(true);
-      }
-    };
-    globalThis.addEventListener("keydown", onKey);
-    return () => globalThis.removeEventListener("keydown", onKey);
-  }, []);
+  useShortcut(
+    useMemo(
+      () => [
+        {
+          key: "k",
+          meta: true,
+          description: "Open command palette",
+          run: () => setPalette(true),
+        },
+      ],
+      [],
+    ),
+  );
 
   const effectiveSpace = props.spaceId || search.get("space") || "";
 
@@ -172,11 +175,7 @@ export function PageEditor(props: { spaceId: string; hideChrome?: boolean }) {
   return (
     <div className="min-h-full flex flex-col">
       <main className="flex-1 max-w-3xl w-full mx-auto px-8 py-10">
-        {showChrome &&
-        pageId &&
-        pageId !== "new" &&
-        data?.page &&
-        spaceForCommands ? (
+        {showChrome && pageId && pageId !== "new" && data?.page && spaceForCommands ? (
           <PageBreadcrumbs spaceId={spaceForCommands} pageId={pageId} />
         ) : null}
 
@@ -194,9 +193,7 @@ export function PageEditor(props: { spaceId: string; hideChrome?: boolean }) {
           />
         ) : null}
 
-        {isLoading && pageId !== "new" ? (
-          <p className="text-[var(--pa-secondary)]">…</p>
-        ) : null}
+        {isLoading && pageId !== "new" ? <p className="text-[var(--pa-secondary)]">…</p> : null}
 
         {pageId && pageId !== "new" ? (
           <div className="space-y-1">

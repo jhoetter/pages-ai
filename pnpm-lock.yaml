@@ -334,11 +334,11 @@ importers:
         specifier: ^3.2.2
         version: 3.2.2(react@19.2.5)
       '@hofos/shell-ui':
-        specifier: file:../../vendor/hofos-shell-ui-0.1.0.tgz
-        version: file:vendor/hofos-shell-ui-0.1.0.tgz(lucide-react@0.574.0(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+        specifier: ^0.1.0
+        version: 0.1.0(lucide-react@0.574.0(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@hofos/ux':
-        specifier: file:../../../hof-os/packages/hof-ux
-        version: file:../hof-os/packages/hof-ux(cmdk@1.1.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+        specifier: ^0.1.0
+        version: 0.1.0(cmdk@1.1.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@lexical/react':
         specifier: ^0.43.0
         version: 0.43.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(yjs@13.6.30)
@@ -1130,16 +1130,17 @@ packages:
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
 
-  '@hofos/shell-ui@file:vendor/hofos-shell-ui-0.1.0.tgz':
-    resolution: {integrity: sha512-a71CEeGjb7xnwQwlukySvhlXxpkNC4EvBtfR5taehJBYLcpxahai9IsQjsryeB9zdKGSrXAXkLdt1L2WwyFgNQ==, tarball: file:vendor/hofos-shell-ui-0.1.0.tgz}
+  '@hofos/shell-ui@0.1.0':
+    resolution: {integrity: sha512-dOPsty+0KNoKPcA31bOZUY+iuQXw2/xDIDnndy2rw0dYEn5Iy/huRvnMoZfyeLPi+90AM9bAaMNFX65ipj3XFQ==}
     version: 0.1.0
     peerDependencies:
       lucide-react: '>=0.460.0'
       react: '>=18.3.0'
       react-dom: '>=18.3.0'
 
-  '@hofos/ux@file:../hof-os/packages/hof-ux':
-    resolution: {directory: ../hof-os/packages/hof-ux, type: directory}
+  '@hofos/ux@0.1.0':
+    resolution: {integrity: sha512-eM8uiSSUhG9Bpx2m9gh5T0QUXF4mdeqnv0rlLX8kqMTqs5hhiNwHUxVTOloY9qE2HwBJFY1P+IzRTb4NWnCy/g==}
+    version: 0.1.0
     peerDependencies:
       cmdk: '>=1.1.0'
       react: '>=18.3.0'
@@ -4685,13 +4686,13 @@ snapshots:
 
   '@floating-ui/utils@0.2.11': {}
 
-  '@hofos/shell-ui@file:vendor/hofos-shell-ui-0.1.0.tgz(lucide-react@0.574.0(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)':
+  '@hofos/shell-ui@0.1.0(lucide-react@0.574.0(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)':
     dependencies:
       lucide-react: 0.574.0(react@19.2.5)
       react: 19.2.5
       react-dom: 19.2.5(react@19.2.5)
 
-  '@hofos/ux@file:../hof-os/packages/hof-ux(cmdk@1.1.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)':
+  '@hofos/ux@0.1.0(cmdk@1.1.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)':
     dependencies:
       cmdk: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       react: 19.2.5
