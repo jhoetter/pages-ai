@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import {
   HofShellLayout,
-  HOF_SHELL_APP_LINKS,
+  LucideIconByName,
   fetchHofShellUser,
   type HofShellUser,
   type HofShellNavGroup,
@@ -12,6 +12,7 @@ import { CommandPalette as HofCommandPalette, createAppLinkCommands, useShortcut
 import { PageTree } from "@/components/PageTree";
 
 const hofos = import.meta.env["VITE_HOFOS_MODE"] === "1";
+import { createHandoffAppLinks, navigateHandoffHref } from "@/lib/hofShellNavigation";
 
 export function WorkspaceShell() {
   const { t } = useTranslation();
@@ -50,16 +51,16 @@ export function WorkspaceShell() {
   }, []);
 
   const appLinks = useMemo(
-    () =>
-      HOF_SHELL_APP_LINKS.map((link) =>
-        link.id === "pagesai" ? { ...link, href: "/pages" } : link,
-      ),
+    () => createHandoffAppLinks({ selfAppId: "pagesai", selfHref: "/pages" }),
     [],
   );
 
   const paletteCommands = useMemo(
     () => [
-      ...createAppLinkCommands(appLinks),
+      ...createAppLinkCommands(appLinks, {
+        navigate: (href) => navigateHandoffHref(href),
+        renderIcon: (app) => <LucideIconByName name={app.icon} size={16} />,
+      }),
       {
         id: "pages:home",
         group: "Actions",
@@ -115,8 +116,8 @@ export function WorkspaceShell() {
       user={shellUser}
       onCommand={() => setPaletteOpen(true)}
       onNavigate={(path) => {
-        if (path.startsWith("/")) navigate(path);
-        else window.location.href = path;
+        if (path.startsWith("/") && !path.startsWith("/__subapps/")) navigate(path);
+        else navigateHandoffHref(path);
       }}
     >
       <div className="flex-1 min-w-0 overflow-auto flex flex-col">

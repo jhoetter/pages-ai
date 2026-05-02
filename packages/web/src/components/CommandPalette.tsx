@@ -4,11 +4,12 @@ import {
   createAppLinkCommands,
   type CommandItem,
 } from "@hofos/ux";
-import { HOF_SHELL_APP_LINKS } from "@hofos/shell-ui";
+import { LucideIconByName } from "@hofos/shell-ui";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { apiGet } from "@/lib/api";
+import { createHandoffAppLinks, navigateHandoffHref } from "@/lib/hofShellNavigation";
 
 type SearchRes = { results: Array<{ id: string; title: string }> };
 
@@ -104,9 +105,11 @@ export function CommandPalette(props: {
       perform: () => nav(`/pages/space/${props.spaceId}`),
     },
     ...createAppLinkCommands(
-      HOF_SHELL_APP_LINKS.map((link) =>
-        link.id === "pagesai" ? { ...link, href: "/pages" } : link,
-      ),
+      createHandoffAppLinks({ selfAppId: "pagesai", selfHref: "/pages" }),
+      {
+        navigate: (href) => navigateHandoffHref(href),
+        renderIcon: (app) => <LucideIconByName name={app.icon} size={16} />,
+      },
     ),
   ];
 
