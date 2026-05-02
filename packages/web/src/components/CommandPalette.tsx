@@ -120,7 +120,6 @@ export function CommandPalette(props: {
       open={props.open}
       onOpenChange={props.onOpenChange}
       commands={commands}
-      placeholder={t("palette.search")}
       inputValue={search}
       onInputValueChange={setSearch}
       shouldFilter={false}

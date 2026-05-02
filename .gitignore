@@ -9,3 +9,4 @@ release-out
 coverage
 playwright-report
 test-results
+vendor/hofos/

@@ -4,15 +4,16 @@ import {
   HofShellLayout,
   LucideIconByName,
   fetchHofShellUser,
+  signOutOfHofShell,
   type HofShellUser,
   type HofShellNavGroup,
 } from "@hofos/shell-ui";
 import { useTranslation } from "react-i18next";
 import { CommandPalette as HofCommandPalette, createAppLinkCommands, useShortcut } from "@hofos/ux";
 import { PageTree } from "@/components/PageTree";
+import { createHandoffAppLinks, navigateHandoffHref } from "@/lib/hofShellNavigation";
 
 const hofos = import.meta.env["VITE_HOFOS_MODE"] === "1";
-import { createHandoffAppLinks, navigateHandoffHref } from "@/lib/hofShellNavigation";
 
 export function WorkspaceShell() {
   const { t } = useTranslation();
@@ -114,6 +115,7 @@ export function WorkspaceShell() {
       primaryNavGroups={navGroups}
       appLinks={appLinks}
       user={shellUser}
+      onSignOut={() => signOutOfHofShell()}
       onCommand={() => setPaletteOpen(true)}
       onNavigate={(path) => {
         if (path.startsWith("/") && !path.startsWith("/__subapps/")) navigate(path);
@@ -127,7 +129,6 @@ export function WorkspaceShell() {
         open={paletteOpen}
         onOpenChange={setPaletteOpen}
         commands={paletteCommands}
-        placeholder="Search or run a command..."
         hint="Actions"
       />
     </HofShellLayout>

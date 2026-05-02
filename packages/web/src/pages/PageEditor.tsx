@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { applyColorScheme, getStoredColorScheme, setStoredColorScheme } from "@hofos/shell-ui";
 import { useShortcut } from "@hofos/ux";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -37,14 +38,9 @@ export function PageEditor(props: { spaceId: string; hideChrome?: boolean }) {
   const nav = useNavigate();
   const qc = useQueryClient();
   const [palette, setPalette] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
   const [titleDraft, setTitleDraft] = useState("");
   const [iconDraft, setIconDraft] = useState("");
   const [coverDraft, setCoverDraft] = useState("");
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-  }, [theme]);
 
   useShortcut(
     useMemo(
@@ -261,7 +257,11 @@ export function PageEditor(props: { spaceId: string; hideChrome?: boolean }) {
         onCreatePage={() =>
           nav(`/pages/p/new?space=${encodeURIComponent(props.spaceId || effectiveSpace)}`)
         }
-        onToggleTheme={() => setTheme((x) => (x === "light" ? "dark" : "light"))}
+        onToggleTheme={() => {
+          const next = getStoredColorScheme() === "dark" ? "light" : "dark";
+          setStoredColorScheme(next);
+          applyColorScheme(next);
+        }}
         onToggleLang={() => undefined}
       />
     </div>
