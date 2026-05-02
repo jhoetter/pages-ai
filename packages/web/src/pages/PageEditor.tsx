@@ -52,8 +52,11 @@ export function PageEditor(props: { spaceId: string; hideChrome?: boolean }) {
         {
           key: "k",
           meta: true,
-          description: "Open command palette",
-          run: () => setPalette(true),
+          capture: true,
+          stopPropagation: true,
+          stopImmediatePropagation: true,
+          description: "Toggle command palette",
+          run: () => setPalette((open) => !open),
         },
       ],
       [],
