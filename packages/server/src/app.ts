@@ -56,6 +56,7 @@ export async function buildApp(opts: ServerOptions) {
   app.addHook("preHandler", async (req, reply) => {
     if (req.url === "/health") return;
     if (req.url.startsWith("/api/ws")) return;
+    if (req.url.startsWith("/api/subapp-handoff/exchange")) return;
     const auth = await resolveAuth(req, { devToken: opts.devToken, jwtSecret: opts.jwtSecret });
     if (!auth) {
       reply.code(401).send({ error: { code: "UNAUTHORIZED", message: "Invalid token" } });

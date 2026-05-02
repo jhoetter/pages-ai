@@ -12,7 +12,7 @@
   --hof-pa-danger: #991b1b;
   --hof-pa-success: #047857;
   --hof-pa-radius-sm: 0px;
-  --hof-pa-radius-md: 2px;
+  --hof-pa-radius-md: 0.125rem;
   --hof-pa-font-sans: "Source Serif 4", Georgia, "Times New Roman", serif;
   --hof-pa-font-features: normal;
   --hof-pa-dark-bg: #0c0a09;
