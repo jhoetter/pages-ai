@@ -18,6 +18,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      "@hofos/shell-ui/fonts.css": fileURLToPath(
+        new URL("../../../hof-os/packages/hof-shell-ui/src/fonts.css", import.meta.url),
+      ),
       "@pagesai-design-system.css": fileURLToPath(
         new URL(`./src/design-systems/${resolveDesignSystemId()}.css`, import.meta.url),
       ),

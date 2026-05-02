@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, Outlet, useLocation, useNavigate } from "react-router";
+import { Outlet, useLocation, useNavigate } from "react-router";
 import {
   HofShellLayout,
   HOF_SHELL_APP_LINKS,
@@ -8,6 +8,7 @@ import {
   type HofShellNavGroup,
 } from "@hofos/shell-ui";
 import { useTranslation } from "react-i18next";
+import { CommandPalette as HofCommandPalette, createAppLinkCommands, useShortcut } from "@hofos/ux";
 import { PageTree } from "@/components/PageTree";
 
 const hofos = import.meta.env["VITE_HOFOS_MODE"] === "1";
@@ -19,17 +20,24 @@ export function WorkspaceShell() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shellUser, setShellUser] = useState<HofShellUser | null>(null);
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setPaletteOpen((open) => !open);
-      }
-      if (event.key === "Escape") setPaletteOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  const shortcutBindings = useMemo(
+    () => [
+      {
+        key: "k",
+        meta: true,
+        description: "Open command palette",
+        run: () => setPaletteOpen((open) => !open),
+      },
+      {
+        key: "Escape",
+        allowInTypingTarget: true,
+        description: "Close command palette",
+        run: () => setPaletteOpen(false),
+      },
+    ],
+    [],
+  );
+  useShortcut(shortcutBindings);
 
   useEffect(() => {
     let alive = true;
@@ -40,6 +48,27 @@ export function WorkspaceShell() {
       alive = false;
     };
   }, []);
+
+  const appLinks = useMemo(
+    () =>
+      HOF_SHELL_APP_LINKS.map((link) =>
+        link.id === "pagesai" ? { ...link, href: "/pages" } : link,
+      ),
+    [],
+  );
+
+  const paletteCommands = useMemo(
+    () => [
+      ...createAppLinkCommands(appLinks),
+      {
+        id: "pages:home",
+        group: "Actions",
+        label: "Open Pages",
+        perform: () => navigate("/pages"),
+      },
+    ],
+    [appLinks, navigate],
+  );
 
   const navGroups = useMemo<HofShellNavGroup[]>(
     () => [
@@ -58,7 +87,12 @@ export function WorkspaceShell() {
         id: "workspace",
         label: "Workspace",
         items: [
-          { id: "templates", label: t("nav.templates"), path: "/pages/templates", icon: "file-text" },
+          {
+            id: "templates",
+            label: t("nav.templates"),
+            path: "/pages/templates",
+            icon: "file-text",
+          },
           { id: "settings", label: t("nav.settings"), path: "/pages/settings", icon: "settings" },
         ],
       },
@@ -77,9 +111,7 @@ export function WorkspaceShell() {
       appIcon="file-text"
       currentPath={location.pathname}
       primaryNavGroups={navGroups}
-      appLinks={HOF_SHELL_APP_LINKS.map((link) =>
-        link.id === "pagesai" ? { ...link, href: "/pages" } : link,
-      )}
+      appLinks={appLinks}
       user={shellUser}
       onCommand={() => setPaletteOpen(true)}
       onNavigate={(path) => {
@@ -90,42 +122,13 @@ export function WorkspaceShell() {
       <div className="flex-1 min-w-0 overflow-auto flex flex-col">
         <Outlet />
       </div>
-      {paletteOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] bg-black/30"
-          onClick={() => setPaletteOpen(false)}
-        >
-          <div
-            className="w-full max-w-lg rounded-lg border shadow-lg p-2"
-            style={{
-              background: "var(--color-card)",
-              borderColor: "var(--color-border)",
-              color: "var(--color-foreground)",
-            }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <p className="px-3 py-2 text-xs text-[var(--color-tertiary)] border-b" style={{ borderColor: "var(--color-border)" }}>
-              Actions
-            </p>
-            {HOF_SHELL_APP_LINKS.map((app) => (
-              <button
-                key={app.id}
-                type="button"
-                onClick={() => {
-                  window.location.href = app.href;
-                  setPaletteOpen(false);
-                }}
-                className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[var(--color-hover)]"
-              >
-                Open {app.label}
-              </button>
-            ))}
-            <Link to="/pages" className="block rounded-md px-3 py-2 text-sm hover:bg-[var(--color-hover)]" onClick={() => setPaletteOpen(false)}>
-              Open Pages
-            </Link>
-          </div>
-        </div>
-      ) : null}
+      <HofCommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        commands={paletteCommands}
+        placeholder="Search or run a command..."
+        hint="Actions"
+      />
     </HofShellLayout>
   );
 }

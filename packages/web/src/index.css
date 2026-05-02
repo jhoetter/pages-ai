@@ -1,3 +1,4 @@
+@import "@hofos/shell-ui/fonts.css";
 @import "tailwindcss";
 @import "@hofos/shell-ui/theme.css";
 @import "@pagesai-design-system.css";
@@ -87,7 +88,9 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not(.hof-theme-light):not(.hof-theme-dark):not([data-theme="light"]):not([data-theme="dark"]) {
+  :root:not(.hof-theme-light):not(.hof-theme-dark):not([data-theme="light"]):not(
+      [data-theme="dark"]
+    ) {
     --pa-bg: var(--color-background, var(--hof-pa-dark-bg, #191919));
     --pa-fg: var(--color-foreground, var(--hof-pa-dark-fg, #e3e2e0));
     --pa-surface: var(--color-sidebar-background, var(--hof-pa-dark-surface, #202020));
