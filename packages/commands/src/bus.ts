@@ -622,6 +622,13 @@ export async function handleCommand(
             schemaJson,
           })
           .returning();
+        const queryJson: ViewQuery = { filters: [], sorts: [] };
+        await db.insert(schema.databaseViews).values({
+          databaseId: d.id,
+          name: "Default",
+          type: "table",
+          queryJson,
+        });
         const op = { op_type: "db.created", payload: { database: d } };
         await db.insert(schema.operations).values({
           ...baseOps,

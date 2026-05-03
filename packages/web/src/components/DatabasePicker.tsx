@@ -57,6 +57,8 @@ export function DatabasePicker(props: {
       try {
         const dbId = await props.onCreateNew();
         props.onPickExisting(dbId);
+      } catch {
+        /* ignore */
       } finally {
         setBusy(false);
       }

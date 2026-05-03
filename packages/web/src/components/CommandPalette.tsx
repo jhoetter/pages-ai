@@ -84,7 +84,9 @@ export function CommandPalette(props: {
       id: "pages:database",
       group: t("palette.quickActions"),
       label: t("db.title"),
-      perform: () => nav("/pages/db/example-db"),
+      perform: () => {
+        nav("/pages/db/example-db");
+      },
     },
     {
       id: "pages:templates",

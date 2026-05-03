@@ -22,24 +22,21 @@ export function DocumentCanvas(props: {
 
   const createDatabaseAndView = useCallback(async (): Promise<string> => {
     if (!props.spaceId) throw new Error("space");
-    const res = await apiPost<{ operations?: Array<{ payload?: { database?: { id: string } } }> }>("/api/commands", {
-      type: "db.create",
-      payload: {
-        space_id: props.spaceId,
-        parent_page_id: props.pageId,
-        title: t("db.untitled"),
+    const res = await apiPost<{ operations?: Array<{ payload?: { database?: { id: string } } }> }>(
+      "/api/commands",
+      {
+        type: "db.create",
+        payload: {
+          space_id: props.spaceId,
+          parent_page_id: props.pageId,
+          title: t("db.untitled"),
+        },
+        actor_id: "web",
+        actor_type: "human",
       },
-      actor_id: "web",
-      actor_type: "human",
-    });
+    );
     const dbId = res.operations?.[0]?.payload?.database?.id;
     if (!dbId) throw new Error("no database id");
-    await apiPost("/api/commands", {
-      type: "db.view.create",
-      payload: { database_id: dbId, type: "table", name: t("db.defaultTableView") },
-      actor_id: "web",
-      actor_type: "human",
-    });
     return dbId;
   }, [props.pageId, props.spaceId, t]);
 

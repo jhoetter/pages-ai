@@ -48,6 +48,53 @@
         { "name": "after", "type": "string", "required": false },
         { "name": "content", "type": "string", "required": true }
       ]
+    },
+    {
+      "name": "database create",
+      "command": "pages-agent database create",
+      "summary": "Create a database in a space.",
+      "args": [
+        { "name": "space", "type": "string", "required": true },
+        { "name": "title", "type": "string", "required": true }
+      ]
+    },
+    {
+      "name": "database property add",
+      "command": "pages-agent database property add",
+      "summary": "Add a property to a database schema.",
+      "args": [
+        { "name": "database", "type": "string", "required": true },
+        { "name": "name", "type": "string", "required": true },
+        { "name": "type", "type": "string", "required": true }
+      ]
+    },
+    {
+      "name": "database row create",
+      "command": "pages-agent database row create",
+      "summary": "Create a row (cells JSON object).",
+      "args": [
+        { "name": "database", "type": "string", "required": true },
+        { "name": "cells", "type": "string", "required": true }
+      ]
+    },
+    {
+      "name": "database view create",
+      "command": "pages-agent database view create",
+      "summary": "Create a view (table|board|list|calendar).",
+      "args": [
+        { "name": "database", "type": "string", "required": true },
+        { "name": "name", "type": "string", "required": true },
+        { "name": "type", "type": "string", "required": true }
+      ]
+    },
+    {
+      "name": "database query",
+      "command": "pages-agent database query",
+      "summary": "Run a view query.",
+      "args": [
+        { "name": "database", "type": "string", "required": true },
+        { "name": "view", "type": "string", "required": true }
+      ]
     }
   ],
   "function_wrappers": [],

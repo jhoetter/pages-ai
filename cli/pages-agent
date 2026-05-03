@@ -1,66 +1,8 @@
-#!/usr/bin/env python3
-from __future__ import annotations
-
-import argparse
-import json
-from datetime import datetime, timezone
-
-VERSION = "0.1.0"
-
-
-def emit(ok: bool, result: dict, error: str | None = None) -> int:
-    print(
-        json.dumps(
-            {
-                "ok": ok,
-                "result": result if ok else None,
-                "error": error,
-                "meta": {
-                    "cli": "pages-agent",
-                    "version": VERSION,
-                    "emitted_at": datetime.now(timezone.utc).isoformat(),
-                },
-            },
-            sort_keys=True,
-        )
-    )
-    return 0 if ok else 1
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(prog="pages-agent")
-    parser.add_argument("--version", action="store_true")
-    sub = parser.add_subparsers(dest="group")
-    sub.add_parser("status")
-    page = sub.add_parser("page")
-    page_sub = page.add_subparsers(dest="action")
-    page_sub.add_parser("list")
-    page_sub.add_parser("read").add_argument("--id", required=True)
-    create = page_sub.add_parser("create")
-    create.add_argument("--title", required=True)
-    create.add_argument("--parent", default=None)
-    update = page_sub.add_parser("update")
-    update.add_argument("--id", required=True)
-    update.add_argument("--content", required=True)
-    block = sub.add_parser("block")
-    block_sub = block.add_subparsers(dest="action")
-    insert = block_sub.add_parser("insert")
-    insert.add_argument("--page", required=True)
-    insert.add_argument("--after", default=None)
-    insert.add_argument("--content", required=True)
-    args = parser.parse_args()
-
-    if args.version:
-        return emit(True, {"version": VERSION})
-    if args.group == "status":
-        return emit(True, {"module": "pagesai", "status": "ready"})
-    payload = {"module": "pagesai", "group": args.group, "action": getattr(args, "action", None)}
-    payload.update({k: v for k, v in vars(args).items() if k not in {"group", "action", "version"}})
-    if args.group in {"page", "block"} and args.action:
-        return emit(True, payload)
-    parser.print_help()
-    return 2
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+#!/usr/bin/env sh
+set -e
+if [ -n "${PAGESAI_CLI_JS:-}" ]; then
+  exec node "$PAGESAI_CLI_JS" "$@"
+fi
+_here="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+_root="$(CDPATH= cd -- "$_here/.." && pwd)"
+exec node "$_root/packages/cli/dist/index.js" "$@"

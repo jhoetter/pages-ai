@@ -221,10 +221,22 @@ export async function buildApp(opts: ServerOptions) {
       reply.code(404).send({ error: { code: "NOT_FOUND", message: "database" } });
       return;
     }
-    const views = await db
+    let views = await db
       .select()
       .from(schema.databaseViews)
       .where(eq(schema.databaseViews.databaseId, id));
+    if (!views.length) {
+      await db.insert(schema.databaseViews).values({
+        databaseId: id,
+        name: "Default",
+        type: "table",
+        queryJson: { filters: [], sorts: [] },
+      });
+      views = await db
+        .select()
+        .from(schema.databaseViews)
+        .where(eq(schema.databaseViews.databaseId, id));
+    }
     return { database: d[0].databases, views };
   });
 

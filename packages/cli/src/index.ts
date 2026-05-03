@@ -19,6 +19,24 @@ program.option(
   process.env["PAGESAI_API_URL"] ?? "http://127.0.0.1:3399",
 );
 
+program
+  .command("status")
+  .description("Handshake JSON for hofOS agent catalog (matches legacy pages-agent envelope)")
+  .action(() => {
+    console.log(
+      JSON.stringify({
+        ok: true,
+        result: { module: "pagesai", status: "ready" },
+        error: null,
+        meta: {
+          cli: "pages-agent",
+          version: program.version(),
+          emitted_at: new Date().toISOString(),
+        },
+      }),
+    );
+  });
+
 function getApiUrl(): string {
   return (program.opts() as { apiUrl: string }).apiUrl.replace(/\/$/, "");
 }
@@ -88,7 +106,10 @@ auth
       console.log(
         JSON.stringify({
           token: dev ?? tok ?? null,
-          hint: dev || tok ? "Use Authorization: Bearer <token>" : "Set PAGESAI_DEV_TOKEN on server and export PAGESAI_TOKEN for CLI",
+          hint:
+            dev || tok
+              ? "Use Authorization: Bearer <token>"
+              : "Set PAGESAI_DEV_TOKEN on server and export PAGESAI_TOKEN for CLI",
         }),
       );
     } else if (dev || tok) {
@@ -163,7 +184,9 @@ page
   });
 page
   .command("body-sync")
-  .description("Replace page body blocks (page.body_sync); JSON file is DTO array or { blocks: [...] }")
+  .description(
+    "Replace page body blocks (page.body_sync); JSON file is DTO array or { blocks: [...] }",
+  )
   .requiredOption("--page <id>")
   .requiredOption("--file <path>", "JSON file with blocks array")
   .action(async (opts) => {
@@ -329,82 +352,97 @@ block
     if (!r.ok) process.exit(EXIT.VALIDATION);
   });
 
-const db = program.command("db");
-db.command("create")
-  .requiredOption("--space <id>")
-  .requiredOption("--title <t>")
-  .action(async (opts) => {
-    const r = await api("POST", "/api/commands", {
-      type: "db.create",
-      payload: { space_id: opts.space, title: opts.title },
-      actor_id: "cli",
-      actor_type: "human",
+function registerDatabaseCommands(cmd: Command): void {
+  cmd
+    .command("create")
+    .requiredOption("--space <id>")
+    .requiredOption("--title <t>")
+    .action(async (opts) => {
+      const r = await api("POST", "/api/commands", {
+        type: "db.create",
+        payload: { space_id: opts.space, title: opts.title },
+        actor_id: "cli",
+        actor_type: "human",
+      });
+      console.log(JSON.stringify(r.json, null, 2));
+      if (!r.ok) process.exit(EXIT.VALIDATION);
     });
-    console.log(JSON.stringify(r.json, null, 2));
-    if (!r.ok) process.exit(EXIT.VALIDATION);
-  });
-db.command("property")
-  .command("add")
-  .requiredOption("--database <id>")
-  .requiredOption("--name <n>")
-  .requiredOption("--type <t>")
-  .action(async (opts) => {
-    const r = await api("POST", "/api/commands", {
-      type: "db.property.add",
-      payload: { database_id: opts.database, name: opts.name, type: opts.type },
-      actor_id: "cli",
-      actor_type: "human",
+  cmd
+    .command("property")
+    .command("add")
+    .requiredOption("--database <id>")
+    .requiredOption("--name <n>")
+    .requiredOption("--type <t>")
+    .action(async (opts) => {
+      const r = await api("POST", "/api/commands", {
+        type: "db.property.add",
+        payload: { database_id: opts.database, name: opts.name, type: opts.type },
+        actor_id: "cli",
+        actor_type: "human",
+      });
+      console.log(JSON.stringify(r.json, null, 2));
+      if (!r.ok) process.exit(EXIT.VALIDATION);
     });
-    console.log(JSON.stringify(r.json, null, 2));
-    if (!r.ok) process.exit(EXIT.VALIDATION);
-  });
-db.command("row")
-  .command("create")
-  .requiredOption("--database <id>")
-  .requiredOption("--cells <json>")
-  .action(async (opts) => {
-    let cells: Record<string, unknown>;
-    try {
-      cells = JSON.parse(opts.cells) as Record<string, unknown>;
-    } catch {
-      printErr({ error: { code: "VALIDATION", message: "cells must be JSON object" } });
-      process.exit(EXIT.VALIDATION);
-      return;
-    }
-    const r = await api("POST", "/api/commands", {
-      type: "db.row.create",
-      payload: { database_id: opts.database, cells },
-      actor_id: "cli",
-      actor_type: "human",
+  cmd
+    .command("row")
+    .command("create")
+    .requiredOption("--database <id>")
+    .requiredOption("--cells <json>")
+    .action(async (opts) => {
+      let cells: Record<string, unknown>;
+      try {
+        cells = JSON.parse(opts.cells) as Record<string, unknown>;
+      } catch {
+        printErr({ error: { code: "VALIDATION", message: "cells must be JSON object" } });
+        process.exit(EXIT.VALIDATION);
+        return;
+      }
+      const r = await api("POST", "/api/commands", {
+        type: "db.row.create",
+        payload: { database_id: opts.database, cells },
+        actor_id: "cli",
+        actor_type: "human",
+      });
+      console.log(JSON.stringify(r.json, null, 2));
+      if (!r.ok) process.exit(EXIT.VALIDATION);
     });
-    console.log(JSON.stringify(r.json, null, 2));
-    if (!r.ok) process.exit(EXIT.VALIDATION);
-  });
-db.command("view")
-  .command("create")
-  .requiredOption("--database <id>")
-  .requiredOption("--name <n>")
-  .requiredOption("--type <t>")
-  .action(async (opts) => {
-    const r = await api("POST", "/api/commands", {
-      type: "db.view.create",
-      payload: { database_id: opts.database, name: opts.name, type: opts.type },
-      actor_id: "cli",
-      actor_type: "human",
+  cmd
+    .command("view")
+    .command("create")
+    .requiredOption("--database <id>")
+    .requiredOption("--name <n>")
+    .requiredOption("--type <t>")
+    .action(async (opts) => {
+      const r = await api("POST", "/api/commands", {
+        type: "db.view.create",
+        payload: { database_id: opts.database, name: opts.name, type: opts.type },
+        actor_id: "cli",
+        actor_type: "human",
+      });
+      console.log(JSON.stringify(r.json, null, 2));
+      if (!r.ok) process.exit(EXIT.VALIDATION);
     });
-    console.log(JSON.stringify(r.json, null, 2));
-    if (!r.ok) process.exit(EXIT.VALIDATION);
-  });
-db.command("query")
-  .requiredOption("--database <id>")
-  .requiredOption("--view <id>")
-  .action(async (opts) => {
-    const r = await api("POST", `/api/databases/${opts.database}/query`, {
-      view_id: opts.view,
+  cmd
+    .command("query")
+    .requiredOption("--database <id>")
+    .requiredOption("--view <id>")
+    .action(async (opts) => {
+      const r = await api("POST", `/api/databases/${opts.database}/query`, {
+        view_id: opts.view,
+      });
+      console.log(JSON.stringify(r.json, null, 2));
+      if (!r.ok) process.exit(EXIT.VALIDATION);
     });
-    console.log(JSON.stringify(r.json, null, 2));
-    if (!r.ok) process.exit(EXIT.VALIDATION);
-  });
+}
+
+registerDatabaseCommands(
+  program.command("db").description("Lightweight databases (Notion-style tables)"),
+);
+registerDatabaseCommands(
+  program
+    .command("database")
+    .description("Alias for db — same commands (hofOS agent / tools.json)"),
+);
 
 program
   .command("search")

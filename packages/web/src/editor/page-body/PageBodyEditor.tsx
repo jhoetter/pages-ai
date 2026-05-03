@@ -36,7 +36,7 @@ import {
   type EditorState,
   type LexicalNode,
 } from "lexical";
-import type { Ref } from "react";
+import type { Ref, RefObject } from "react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
@@ -162,6 +162,7 @@ function PageBodyCommandsPlugin(props: {
   forwardedRef: Ref<PageBodyEditorHandle>;
   pageId: string;
   debounceMs: number;
+  flushBodySyncRef: RefObject<(() => void) | null>;
 }) {
   const [editor] = useLexicalComposerContext();
   const qc = useQueryClient();
@@ -200,6 +201,13 @@ function PageBodyCommandsPlugin(props: {
       /* retry on next change / explicit flush */
     }
   }, [bodySyncSuspendedRef, editor, props.pageId, qc]);
+
+  useEffect(() => {
+    props.flushBodySyncRef.current = () => void flush();
+    return () => {
+      props.flushBodySyncRef.current = null;
+    };
+  }, [flush, props.flushBodySyncRef]);
 
   const schedule = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
@@ -323,7 +331,23 @@ function PageBodyCommandsPlugin(props: {
 }
 
 function selectAfterReplace(repl: LexicalNode) {
-  if ($isElementNode(repl)) repl.selectStart();
+  if ($isElementNode(repl)) {
+    repl.selectStart();
+    return;
+  }
+  // For top-level decorator nodes (database, file_embed, divider, page_link, todo, toggle, callout)
+  // the original block's text node is removed along with `top`, leaving the document selection
+  // pointing at a now-orphaned text node. Lexical reverts the entire update during commit when
+  // the post-update selection cannot resolve, so we must give it a valid caret in the same update.
+  let next = repl.getNextSibling();
+  if (!next || !$isPaParagraphNode(next)) {
+    const trailing = $createPaParagraphNode(newTopLevelBlockId());
+    repl.insertAfter(trailing);
+    next = trailing;
+  }
+  if ($isElementNode(next)) {
+    next.selectStart();
+  }
 }
 
 /** Viewport caret rect for anchoring the slash menu below the typed `/`. */
@@ -354,7 +378,7 @@ function SlashMenuPlugin(props: {
   const [editor] = useLexicalComposerContext();
   const { t } = useTranslation();
   const qc = useQueryClient();
-  const { bodySyncSuspendedRef } = usePageBodySurface();
+  const { bodySyncSuspendedRef, flushBodySyncRef } = usePageBodySurface();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
@@ -446,8 +470,12 @@ function SlashMenuPlugin(props: {
         top.replace(repl);
         selectAfterReplace(repl);
       });
+      // Lexical commits decorator-block changes after this microtask completes; defer the
+      // explicit `page.body_sync` flush so it serializes the post-commit state, otherwise
+      // OnChange's debounced flush would see "no delta" until the next user edit.
+      globalThis.setTimeout(() => flushBodySyncRef.current?.(), 0);
     },
-    [editor],
+    [editor, flushBodySyncRef],
   );
 
   const handlePick = useCallback(
@@ -855,6 +883,7 @@ export const PageBodyEditor = forwardRef<PageBodyEditorHandle, PageBodyEditorPro
 ) {
   const { t } = useTranslation();
   const bodySyncSuspendedRef = useRef(false);
+  const flushBodySyncRef = useRef<(() => void) | null>(null);
   const initialState = useMemo(() => {
     const dto = blocksToDto(props.blocks);
     const doc = ensureLexicalRootHasBlockChildren(lexicalEditorJSONFromPageBodyBlocks(dto));
@@ -873,6 +902,7 @@ export const PageBodyEditor = forwardRef<PageBodyEditorHandle, PageBodyEditorPro
       excludePageId: props.pageId,
       onCreateDatabase: props.onCreateDatabase,
       bodySyncSuspendedRef,
+      flushBodySyncRef,
     }),
     [props.onCreateDatabase, props.pageId, props.spaceId],
   );
@@ -903,7 +933,12 @@ export const PageBodyEditor = forwardRef<PageBodyEditorHandle, PageBodyEditorPro
           <FloatingTextFormatToolbar />
           <EnsureTrailingParagraphPlugin />
           <DecoratorKeyboardPlugin />
-          <PageBodyCommandsPlugin forwardedRef={ref} pageId={props.pageId} debounceMs={500} />
+          <PageBodyCommandsPlugin
+            forwardedRef={ref}
+            pageId={props.pageId}
+            debounceMs={500}
+            flushBodySyncRef={flushBodySyncRef}
+          />
           <SlashMenuPlugin spaceId={props.spaceId} excludePageId={props.pageId} onCreateDatabase={props.onCreateDatabase} />
           <BlockHoverHandles onOpenComments={props.onOpenComments} />
           <ClickToWriteZone hint={t("editor.slashHint")} />
