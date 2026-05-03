@@ -69,6 +69,8 @@ export const PageUpdatePayload = z.object({
   title: z.string().min(1).optional(),
   icon: z.string().nullable().optional(),
   cover_image_url: z.string().max(4000).nullable().optional(),
+  /** CSS background-position, e.g. `42% 60%` */
+  cover_image_position: z.string().max(64).nullable().optional(),
   parent_page_id: z.string().uuid().nullable().optional(),
   sort_order: z.number().optional(),
 });
@@ -106,6 +108,22 @@ export const BlockMovePayload = z.object({
 export const BlockDeletePayload = z.object({
   block_id: z.string().uuid(),
 });
+
+/** Full replace of page body blocks (Lexical sync). Omit `id` on a row to create a new block (server assigns UUID). */
+export const PageBodyBlockDTOSchema = z.object({
+  id: z.string().uuid().optional(),
+  type: z.string().min(1),
+  sort_order: z.number(),
+  properties: z.record(z.string(), z.unknown()).optional().default({}),
+  content: z.record(z.string(), z.unknown()),
+});
+export type PageBodyBlockDTO = z.infer<typeof PageBodyBlockDTOSchema>;
+
+export const PageBodySyncPayloadSchema = z.object({
+  page_id: z.string().uuid(),
+  blocks: z.array(PageBodyBlockDTOSchema),
+});
+export type PageBodySyncPayload = z.infer<typeof PageBodySyncPayloadSchema>;
 
 export const DatabaseCreatePayload = z.object({
   space_id: z.string().uuid(),
@@ -196,6 +214,8 @@ export type SlashCommandDef = {
   openDatabasePicker?: boolean;
   /** When set, choosing this command opens a local file picker (after upload, inserts embed). */
   openFilePicker?: "file" | "image";
+  /** Create a child page of the current document and turn this block into a link (Notion-style `/page`). */
+  createSubpageInline?: boolean;
 };
 
 export const slashCommandRegistry: SlashCommandDef[] = [
@@ -338,11 +358,21 @@ export const slashCommandRegistry: SlashCommandDef[] = [
     openFilePicker: "image",
   },
   {
+    id: "new_subpage",
+    commandType: "block.append",
+    labelKey: "editor.slash.newSubpage",
+    blockType: "page_link",
+    keywords: ["page", "subpage", "unterseite"],
+    icon: "📄",
+    section: "link",
+    createSubpageInline: true,
+  },
+  {
     id: "page_link",
     commandType: "block.append",
     labelKey: "editor.slash.pageLink",
     blockType: "page_link",
-    keywords: ["link", "page", "mention", "wikilink", "seite"],
+    keywords: ["link", "mention", "wikilink", "verknüpfen"],
     icon: "🔗",
     section: "link",
     openPagePicker: true,

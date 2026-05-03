@@ -4,7 +4,6 @@ import {
   HofShellLayout,
   LucideIconByName,
   fetchHofShellUser,
-  signOutOfHofShell,
   type HofShellUser,
   type HofShellNavGroup,
 } from "@hofos/shell-ui";
@@ -12,6 +11,7 @@ import { useTranslation } from "react-i18next";
 import { CommandPalette as HofCommandPalette, createAppLinkCommands, useShortcut } from "@hofos/ux";
 import { PageTree } from "@/components/PageTree";
 import { createHandoffAppLinks, navigateHandoffHref } from "@/lib/hofShellNavigation";
+import { signOutOfHofShell } from "@/lib/hofShellSignOut";
 
 const hofos = import.meta.env["VITE_HOFOS_MODE"] === "1";
 

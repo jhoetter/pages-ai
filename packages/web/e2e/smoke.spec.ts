@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 test("home loads", async ({ page }) => {
   await page.goto("/pages");
   await expect(page.getByRole("heading", { name: "PagesAI" })).toBeVisible();
+  await expect(page.getByTestId("pages-library-heading")).toBeVisible();
 });
 
 test("database route loads", async ({ page }) => {
@@ -12,7 +13,7 @@ test("database route loads", async ({ page }) => {
 
 test("create page keeps session after refresh", async ({ page }) => {
   await page.goto("/pages");
-  await page.getByRole("link", { name: "+ Page" }).click();
+  await page.getByTestId("library-new-page").click();
   await page.waitForURL(/\/pages\/p\/[0-9a-f-]{36}/i);
   const url = page.url();
   await page.reload();
@@ -21,7 +22,7 @@ test("create page keeps session after refresh", async ({ page }) => {
 
 test("command palette opens with ctrl+k", async ({ page }) => {
   await page.goto("/pages");
-  await page.getByRole("link", { name: "+ Page" }).click();
+  await page.getByTestId("library-new-page").click();
   await page.waitForURL(/\/pages\/p\/[0-9a-f-]{36}/i);
   await page.locator("body").click({ position: { x: 8, y: 8 } });
   /** Cmd+K is bound in PageEditor only; Ctrl+K avoids Chromium stealing Meta+K. */
@@ -31,14 +32,14 @@ test("command palette opens with ctrl+k", async ({ page }) => {
 
 test("editor page shows document canvas", async ({ page }) => {
   await page.goto("/pages");
-  await page.getByRole("link", { name: "+ Page" }).click();
+  await page.getByTestId("library-new-page").click();
   await page.waitForURL(/\/pages\/p\/[0-9a-f-]{36}/i);
   await expect(page.getByTestId("document-canvas")).toBeVisible();
 });
 
 test("add block menu lists block types", async ({ page }) => {
   await page.goto("/pages");
-  await page.getByRole("link", { name: "+ Page" }).click();
+  await page.getByTestId("library-new-page").click();
   await page.waitForURL(/\/pages\/p\/[0-9a-f-]{36}/i);
   await page.getByTestId("add-block-trigger").click();
   await expect(page.getByRole("button", { name: "Text", exact: true })).toBeVisible();

@@ -13,6 +13,7 @@ import {
   DbRowUpdatePayload,
   DbViewCreatePayload,
   PageArchivePayload,
+  PageBodySyncPayloadSchema,
   PageCreatePayload,
   PageListPayload,
   PageMovePayload,
@@ -102,7 +103,33 @@ export async function handleCommand(
     switch (envelope.type) {
       case "space.create": {
         const name = String(envelope.payload.name ?? "Space");
-        const [row] = await db.insert(schema.spaces).values({ tenantId, name }).returning();
+        let row = (
+          await db
+            .select()
+            .from(schema.spaces)
+            .where(eq(schema.spaces.tenantId, tenantId))
+            .limit(1)
+        )[0];
+        if (!row) {
+          try {
+            const [inserted] = await db.insert(schema.spaces).values({ tenantId, name }).returning();
+            row = inserted;
+          } catch (e) {
+            const code =
+              e !== null && typeof e === "object" && "code" in e
+                ? String((e as { code: unknown }).code)
+                : "";
+            if (code !== "23505") throw e;
+            row = (
+              await db
+                .select()
+                .from(schema.spaces)
+                .where(eq(schema.spaces.tenantId, tenantId))
+                .limit(1)
+            )[0];
+            if (!row) throw e;
+          }
+        }
         const op = { op_type: "space.created", payload: { id: row.id } };
         await db.insert(schema.operations).values({
           ...baseOps,
@@ -156,6 +183,16 @@ export async function handleCommand(
             sortOrder,
           })
           .returning();
+        const sortOrderBlock = await nextBlockSort(db, page.id, null);
+        await db.insert(schema.blocks).values({
+          pageId: page.id,
+          parentBlockId: null,
+          type: "paragraph",
+          properties: {},
+          content: paragraphFromText("") as Record<string, unknown>,
+          sortOrder: sortOrderBlock,
+        });
+        await refreshPageSearch(db, page.id);
         const op = { op_type: "page.created", payload: { page } };
         await db.insert(schema.operations).values({
           ...baseOps,
@@ -215,6 +252,9 @@ export async function handleCommand(
             ...(p.title !== undefined ? { title: p.title } : {}),
             ...(p.icon !== undefined ? { icon: p.icon } : {}),
             ...(p.cover_image_url !== undefined ? { coverImageUrl: p.cover_image_url } : {}),
+            ...(p.cover_image_position !== undefined
+              ? { coverImagePosition: p.cover_image_position }
+              : {}),
             ...(p.parent_page_id !== undefined ? { parentPageId: p.parent_page_id } : {}),
             ...(p.sort_order !== undefined ? { sortOrder: p.sort_order } : {}),
             updatedAt: new Date(),
@@ -461,6 +501,64 @@ export async function handleCommand(
         await db.delete(schema.blocks).where(eq(schema.blocks.id, p.block_id));
         await refreshPageSearch(db, pageId);
         const op = { op_type: "block.deleted", payload: { block_id: p.block_id } };
+        await db.insert(schema.operations).values({
+          ...baseOps,
+          commandId,
+          opType: op.op_type,
+          payload: op.payload,
+        });
+        return { command_id: commandId, status: "applied", operations: [op] };
+      }
+      case "page.body_sync": {
+        const p = PageBodySyncPayloadSchema.parse(envelope.payload);
+        const pageRow = await db
+          .select()
+          .from(schema.pages)
+          .innerJoin(schema.spaces, eq(schema.pages.spaceId, schema.spaces.id))
+          .where(and(eq(schema.pages.id, p.page_id), eq(schema.spaces.tenantId, tenantId)))
+          .limit(1);
+        if (!pageRow[0]) return fail("NOT_FOUND", "page not found");
+        const existing = await db
+          .select({ id: schema.blocks.id })
+          .from(schema.blocks)
+          .where(eq(schema.blocks.pageId, p.page_id));
+        const existingIds = new Set(existing.map((r) => r.id));
+        const payloadIds = new Set(
+          p.blocks.map((b) => b.id).filter((x): x is string => typeof x === "string"),
+        );
+        for (const row of existing) {
+          if (!payloadIds.has(row.id)) {
+            await db.delete(schema.blocks).where(eq(schema.blocks.id, row.id));
+          }
+        }
+        for (const b of p.blocks) {
+          const props = (b.properties ?? {}) as Record<string, unknown>;
+          const content = b.content as Record<string, unknown>;
+          if (b.id && existingIds.has(b.id)) {
+            await db
+              .update(schema.blocks)
+              .set({
+                type: b.type,
+                sortOrder: b.sort_order,
+                properties: props,
+                content,
+                updatedAt: new Date(),
+              })
+              .where(eq(schema.blocks.id, b.id));
+          } else {
+            await db.insert(schema.blocks).values({
+              id: b.id ?? randomUUID(),
+              pageId: p.page_id,
+              parentBlockId: null,
+              type: b.type,
+              properties: props,
+              content,
+              sortOrder: b.sort_order,
+            });
+          }
+        }
+        await refreshPageSearch(db, p.page_id);
+        const op = { op_type: "page.body_synced", payload: { page_id: p.page_id } };
         await db.insert(schema.operations).values({
           ...baseOps,
           commandId,

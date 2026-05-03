@@ -70,3 +70,56 @@ export async function apiUpload<T>(path: string, file: File, fieldName = "file")
   if (!res.ok) await throwOrRecover(res);
   return res.json() as Promise<T>;
 }
+
+export type UploadProgressFn = (loaded: number, total: number) => void;
+
+/** Multipart upload with `xhr.upload` progress (fetch does not expose upload bytes). */
+export function apiUploadWithProgress<T>(
+  path: string,
+  file: File,
+  options?: { fieldName?: string; onProgress?: UploadProgressFn },
+): Promise<T> {
+  const fieldName = options?.fieldName ?? "file";
+  const onProgress = options?.onProgress;
+
+  return new Promise((resolve, reject) => {
+    void (async () => {
+      const base = runtimeApiBase().replace(/\/$/, "");
+      const headers = await runtimeAuthHeaders();
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `${base}${path}`);
+      xhr.withCredentials = true;
+      for (const [k, v] of Object.entries(headers)) {
+        if (v) xhr.setRequestHeader(k, v);
+      }
+      xhr.upload.onprogress = (ev) => {
+        if (ev.lengthComputable && onProgress) onProgress(ev.loaded, ev.total);
+      };
+      xhr.onload = () => {
+        if (xhr.status === 401 && !window.location.search.includes("__hof_handoff=")) {
+          window.location.href = hofOsPagesUrl();
+          reject(new Error("unauthorized"));
+          return;
+        }
+        if (xhr.status < 200 || xhr.status >= 300) {
+          const body = xhr.responseText || xhr.statusText;
+          if (xhr.status === 401 && !window.location.search.includes("__hof_handoff=")) {
+            window.location.href = hofOsPagesUrl();
+          }
+          reject(new Error(body));
+          return;
+        }
+        try {
+          resolve(JSON.parse(xhr.responseText || "{}") as T);
+        } catch (e) {
+          reject(e);
+        }
+      };
+      xhr.onerror = () => reject(new Error("network"));
+      xhr.onabort = () => reject(new Error("aborted"));
+      const fd = new FormData();
+      fd.append(fieldName, file);
+      xhr.send(fd);
+    })().catch(reject);
+  });
+}

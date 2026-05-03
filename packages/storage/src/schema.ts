@@ -17,12 +17,16 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   },
 });
 
-export const spaces = pgTable("spaces", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  tenantId: text("tenant_id").notNull(),
-  name: text("name").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+export const spaces = pgTable(
+  "spaces",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: text("tenant_id").notNull(),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [unique("spaces_tenant_id_key").on(t.tenantId)],
+);
 
 export const pages = pgTable(
   "pages",
@@ -35,6 +39,8 @@ export const pages = pgTable(
     title: text("title").notNull(),
     icon: text("icon"),
     coverImageUrl: text("cover_image_url"),
+    /** CSS `background-position` e.g. `50% 35%` */
+    coverImagePosition: text("cover_image_position"),
     searchDocument: text("search_document").default(""),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     sortOrder: doublePrecision("sort_order").notNull().default(0),

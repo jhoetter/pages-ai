@@ -102,7 +102,7 @@ export function CommandPalette(props: {
       id: "pages:home",
       group: t("palette.quickActions"),
       label: t("nav.pages"),
-      perform: () => nav(`/pages/space/${props.spaceId}`),
+      perform: () => nav("/pages"),
     },
     ...createAppLinkCommands(
       createHandoffAppLinks({ selfAppId: "pagesai", selfHref: "/pages" }),

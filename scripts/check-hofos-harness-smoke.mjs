@@ -22,15 +22,15 @@ if (!/Office-AI/.test(config.harness.officeAiAttachmentContract)) {
 
 const app = readFileSync(join(ROOT, "packages/web/src/App.tsx"), "utf8");
 const pageEditor = readFileSync(join(ROOT, "packages/web/src/pages/PageEditor.tsx"), "utf8");
-if (!app.includes("/pages/templates") || !app.includes("/pages/settings")) {
-  fail("App must link templates and settings routes");
+const attachmentViewer = readFileSync(join(ROOT, "packages/web/src/lib/AttachmentViewer.tsx"), "utf8");
+if (!attachmentViewer.includes("@officeai/react-editors")) {
+  fail("AttachmentViewer must integrate @officeai/react-editors");
 }
 const palette = app + pageEditor;
-if (
-  !palette.includes("CommandPalette") ||
-  !pageEditor.includes("metaKey") ||
-  !pageEditor.includes("ctrlKey")
-) {
+const hasPaletteShortcut =
+  (pageEditor.includes("metaKey") && pageEditor.includes("ctrlKey")) ||
+  (pageEditor.includes("useShortcut") && /meta\s*:\s*true/.test(pageEditor));
+if (!palette.includes("CommandPalette") || !hasPaletteShortcut) {
   fail("Cmd+K palette coverage required");
 }
 

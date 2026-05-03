@@ -10,6 +10,7 @@ import { and, eq, ilike, or } from "drizzle-orm";
 import Fastify from "fastify";
 import { randomUUID } from "node:crypto";
 import { resolveAuth, type AuthContext } from "./auth.js";
+import { ensureImplicitSpaceForTenant } from "./ensure-tenant-space.js";
 import { registerSsoMiddleware } from "./middleware/sso.js";
 import { createS3Client, ensureBucket, getObjectStream, putObjectBytes, type S3Config } from "./s3.js";
 import { registerStaticWeb } from "./static-web.js";
@@ -44,15 +45,6 @@ export async function buildApp(opts: ServerOptions) {
   app.decorate("db", db);
   app.decorate("sql", sql);
 
-  const seed = await db
-    .select()
-    .from(schema.spaces)
-    .where(eq(schema.spaces.tenantId, "dev-tenant"))
-    .limit(1);
-  if (!seed[0]) {
-    await db.insert(schema.spaces).values({ tenantId: "dev-tenant", name: "Default" });
-  }
-
   app.addHook("preHandler", async (req, reply) => {
     if (req.url === "/health") return;
     if (req.url.startsWith("/api/ws")) return;
@@ -62,6 +54,7 @@ export async function buildApp(opts: ServerOptions) {
       reply.code(401).send({ error: { code: "UNAUTHORIZED", message: "Invalid token" } });
       return;
     }
+    await ensureImplicitSpaceForTenant(db, auth.tenantId);
     (req as typeof req & { auth: AuthContext }).auth = auth;
   });
 

@@ -140,16 +140,42 @@ page
   .option("--title <t>")
   .option("--icon <emoji>")
   .option("--cover <url>", "cover image URL")
+  .option(
+    "--cover-position <css>",
+    'cover focal point as CSS background-position (e.g. "40% 60%"); omit or empty to clear',
+  )
   .option("--parent <id>", "parent page uuid")
   .action(async (opts) => {
     const payload: Record<string, unknown> = { page_id: opts.page };
     if (opts.title) payload.title = opts.title;
     if (opts.icon !== undefined) payload.icon = opts.icon || null;
     if (opts.cover !== undefined) payload.cover_image_url = opts.cover || null;
+    if (opts.coverPosition !== undefined) payload.cover_image_position = opts.coverPosition || null;
     if (opts.parent !== undefined) payload.parent_page_id = opts.parent || null;
     const r = await api("POST", "/api/commands", {
       type: "page.update",
       payload,
+      actor_id: "cli",
+      actor_type: "human",
+    });
+    console.log(JSON.stringify(r.json, null, 2));
+    if (!r.ok) process.exit(EXIT.VALIDATION);
+  });
+page
+  .command("body-sync")
+  .description("Replace page body blocks (page.body_sync); JSON file is DTO array or { blocks: [...] }")
+  .requiredOption("--page <id>")
+  .requiredOption("--file <path>", "JSON file with blocks array")
+  .action(async (opts) => {
+    const raw = JSON.parse(await readFile(opts.file, "utf8")) as unknown;
+    const blocks = Array.isArray(raw) ? raw : (raw as { blocks: unknown }).blocks;
+    if (!Array.isArray(blocks)) {
+      printErr({ error: "expected array or { blocks: [] }" });
+      process.exit(EXIT.VALIDATION);
+    }
+    const r = await api("POST", "/api/commands", {
+      type: "page.body_sync",
+      payload: { page_id: opts.page, blocks },
       actor_id: "cli",
       actor_type: "human",
     });

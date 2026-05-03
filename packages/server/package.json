@@ -7,7 +7,7 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx watch src/main.ts",
+    "dev": "pnpm --filter @pagesai/commands build && tsx watch src/main.ts",
     "start": "node dist/main.js",
     "lint": "echo ok",
     "typecheck": "tsc --noEmit",

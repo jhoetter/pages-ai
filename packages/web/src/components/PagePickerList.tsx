@@ -2,15 +2,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { apiGet, apiPost } from "@/lib/api";
+import { useSpacePagesFlat } from "@/lib/useSpacePagesFlat";
 
 type SearchRes = { results: Array<{ id: string; title: string }> };
-type PagesRes = { operations?: Array<{ payload?: { pages?: Array<{ id: string; title: string }> } }> };
 
 type PagePickerListProps = {
   spaceId: string | undefined;
   /** When creating a page from the picker, set as parent (optional). */
   parentPageId?: string;
   excludePageId?: string;
+  /** Additional IDs that cannot be chosen (e.g. page being moved plus its subtree). */
+  excludePageIds?: ReadonlyArray<string>;
   onPick: (pageId: string, title: string) => void;
   onCancel: () => void;
 };
@@ -33,23 +35,28 @@ export function PagePickerList(props: PagePickerListProps) {
     queryFn: () => apiGet<SearchRes>(`/api/search?q=${encodeURIComponent(query)}`),
   });
 
-  const { data: pagesData } = useQuery({
-    queryKey: ["pages-flat", props.spaceId],
+  const { data: flatPages = [] } = useSpacePagesFlat(props.spaceId, {
     enabled: Boolean(props.spaceId) && query.length === 0,
-    queryFn: () => apiGet<PagesRes>(`/api/pages?space_id=${props.spaceId}&all_in_space=1`),
   });
 
+  const excludedIds = useMemo(() => {
+    const s = new Set<string>();
+    if (props.excludePageId) s.add(props.excludePageId);
+    for (const id of props.excludePageIds ?? []) {
+      if (id) s.add(id);
+    }
+    return s;
+  }, [props.excludePageId, props.excludePageIds]);
+
   const baseRows = useMemo(() => {
-    const ex = props.excludePageId;
     if (query.length > 0) {
       const r = searchData?.results ?? [];
-      return ex ? r.filter((x) => x.id !== ex) : r;
+      return excludedIds.size ? r.filter((x) => !excludedIds.has(x.id)) : r;
     }
-    const raw = pagesData?.operations?.[0]?.payload?.pages ?? [];
-    const mapped = raw.map((p) => ({ id: p.id, title: p.title || "…" }));
-    const filtered = ex ? mapped.filter((x) => x.id !== ex) : mapped;
+    const mapped = flatPages.map((p) => ({ id: p.id, title: p.title || "…" }));
+    const filtered = excludedIds.size ? mapped.filter((x) => !excludedIds.has(x.id)) : mapped;
     return filtered.slice(0, 40);
-  }, [query, searchData, pagesData, props.excludePageId]);
+  }, [query, searchData, flatPages, excludedIds]);
 
   const canCreate =
     Boolean(props.spaceId) &&

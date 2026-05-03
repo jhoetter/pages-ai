@@ -113,6 +113,21 @@
   }
 }
 
+/* File attachment row — icon tints reference current --pa-* (drive-ai–aligned semantics). */
+:root {
+  --pa-kind-folder: color-mix(in oklab, var(--pa-accent) 54%, var(--pa-secondary) 46%);
+  --pa-kind-image: var(--pa-accent);
+  --pa-kind-video: color-mix(in oklab, var(--pa-accent) 55%, var(--pa-fg));
+  --pa-kind-audio: var(--pa-success);
+  --pa-kind-pdf: var(--pa-danger);
+  --pa-kind-spreadsheet: color-mix(in oklab, var(--pa-success) 85%, var(--pa-accent));
+  --pa-kind-presentation: var(--pa-warning);
+  --pa-kind-archive: var(--pa-secondary);
+  --pa-kind-document: color-mix(in oklab, var(--pa-accent) 72%, var(--pa-fg));
+  --pa-kind-code: color-mix(in oklab, var(--pa-accent) 58%, var(--pa-success));
+  --pa-kind-file: var(--pa-secondary);
+}
+
 html,
 body,
 #root {
@@ -129,6 +144,13 @@ body,
   font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Lexical contenteditable: theme surfaces often wash out the browser default selection tint. */
+.document-canvas [contenteditable="true"]::selection,
+.document-canvas [contenteditable="true"] *::selection {
+  background-color: color-mix(in oklab, var(--pa-accent) 38%, var(--pa-hover));
+  color: var(--pa-fg);
 }
 
 @media (prefers-reduced-motion: no-preference) {

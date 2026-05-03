@@ -14,34 +14,54 @@ function resolveDesignSystemId(): (typeof DESIGN_SYSTEM_IDS)[number] {
     : "default";
 }
 
-export default defineConfig({
-  resolve: {
-    alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url)),
-      "@pagesai-design-system.css": fileURLToPath(
-        new URL(`./src/design-systems/${resolveDesignSystemId()}.css`, import.meta.url),
-      ),
-    },
-  },
-  plugins: [react(), tailwindcss()],
-  server: {
-    port: 3400,
-    strictPort: true,
-    /** Browser-facing dev URL is http://localhost:3400; API proxy targets stay on IPv4 loopback. */
-    host: "localhost",
-    proxy: {
-      "/api": {
-        target: process.env.VITE_PAGESAI_API_URL ?? "http://127.0.0.1:3399",
-        changeOrigin: true,
-      },
-      "/health": {
-        target: process.env.VITE_PAGESAI_API_URL ?? "http://127.0.0.1:3399",
-        changeOrigin: true,
+export default defineConfig(({ mode }) => {
+  const nodeEnv = mode === "production" ? "production" : "development";
+  /** @officeai/react-editors embeds `envelope.ts`, which reads `process.env.NEXT_PUBLIC_OAI_EMBED` (Next convention). */
+  const oaiEmbedFlag = process.env.VITE_OAI_EMBED ?? "1";
+  const processEnvDefine = {
+    "process.env.NODE_ENV": JSON.stringify(nodeEnv),
+    "process.env.NEXT_PUBLIC_OAI_EMBED": JSON.stringify(oaiEmbedFlag),
+  } as const;
+
+  return {
+    define: { ...processEnvDefine },
+    optimizeDeps: {
+      esbuildOptions: {
+        define: { ...processEnvDefine },
       },
     },
-  },
-  preview: {
-    port: 3400,
-    strictPort: true,
-  },
+    build: {
+      /** Host embed uses top-level await (consumeHofHandoff); esbuild minify target must allow it. */
+      target: "es2022",
+    },
+    resolve: {
+      alias: {
+        "@": fileURLToPath(new URL("./src", import.meta.url)),
+        "@pagesai-design-system.css": fileURLToPath(
+          new URL(`./src/design-systems/${resolveDesignSystemId()}.css`, import.meta.url),
+        ),
+      },
+    },
+    plugins: [react(), tailwindcss()],
+    server: {
+      port: 3400,
+      strictPort: true,
+      /** Browser-facing dev URL is http://localhost:3400; API proxy targets stay on IPv4 loopback. */
+      host: "localhost",
+      proxy: {
+        "/api": {
+          target: process.env.VITE_PAGESAI_API_URL ?? "http://127.0.0.1:3399",
+          changeOrigin: true,
+        },
+        "/health": {
+          target: process.env.VITE_PAGESAI_API_URL ?? "http://127.0.0.1:3399",
+          changeOrigin: true,
+        },
+      },
+    },
+    preview: {
+      port: 3400,
+      strictPort: true,
+    },
+  };
 });

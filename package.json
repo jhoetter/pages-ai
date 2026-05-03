@@ -10,6 +10,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "postinstall": "node scripts/ensure-officeai-react-editors.cjs && node scripts/sync-officeai-fonts.cjs",
     "build": "turbo run build",
     "dev": "turbo run dev --parallel",
     "lint": "turbo run lint",
