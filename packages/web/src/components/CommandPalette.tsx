@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { apiGet } from "@/lib/api";
-import { createHandoffAppLinks, navigateHandoffHref } from "@/lib/hofShellNavigation";
+import { navigateHandoffHref, useHandoffAppLinks } from "@/lib/hofShellNavigation";
 
 type SearchRes = { results: Array<{ id: string; title: string }> };
 
@@ -26,6 +26,7 @@ export function CommandPalette(props: {
   const { t, i18n } = useTranslation();
   const nav = useNavigate();
   const [search, setSearch] = useState("");
+  const appLinks = useHandoffAppLinks({ selfAppId: "pagesai", selfHref: "/pages" });
 
   useEffect(() => {
     if (!props.open) setSearch("");
@@ -106,13 +107,10 @@ export function CommandPalette(props: {
       label: t("nav.pages"),
       perform: () => nav("/pages"),
     },
-    ...createAppLinkCommands(
-      createHandoffAppLinks({ selfAppId: "pagesai", selfHref: "/pages" }),
-      {
-        navigate: (href) => navigateHandoffHref(href),
-        renderIcon: (app) => <LucideIconByName name={app.icon} size={16} />,
-      },
-    ),
+    ...createAppLinkCommands(appLinks, {
+      navigate: (href) => navigateHandoffHref(href),
+      renderIcon: (app) => <LucideIconByName name={app.icon} size={16} />,
+    }),
   ];
 
   const noSearchResults = q.length > 0 && isFetched && (searchData?.results?.length ?? 0) === 0;
